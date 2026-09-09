@@ -1,0 +1,1840 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Журнал пивовара</title>
+<style>
+:root{
+  --bg:#f3ede1;
+  --bg-raised:#fbf7ee;
+  --ink:#241c14;
+  --ink-soft:#5b4f3f;
+  --line:#d9cdb4;
+  --line-soft:#e6dcc7;
+  --copper:#a85a2c;
+  --copper-deep:#7d3f1c;
+  --malt:#c99a3c;
+  --hop:#4c5a3a;
+  --acid:#3c6e4a;
+  --warn:#a8432a;
+  --shadow:0 1px 0 rgba(36,28,20,.06);
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --bg:#1c150e;
+    --bg-raised:#251d14;
+    --ink:#f1e7d4;
+    --ink-soft:#c2b299;
+    --line:#3c3122;
+    --line-soft:#2e2519;
+    --copper:#e08a4f;
+    --copper-deep:#f0a468;
+    --malt:#e0b354;
+    --hop:#8fae7a;
+    --acid:#7fbf8f;
+    --warn:#e08066;
+    --shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1c150e;
+  --bg-raised:#251d14;
+  --ink:#f1e7d4;
+  --ink-soft:#c2b299;
+  --line:#3c3122;
+  --line-soft:#2e2519;
+  --copper:#e08a4f;
+  --copper-deep:#f0a468;
+  --malt:#e0b354;
+  --hop:#8fae7a;
+  --acid:#7fbf8f;
+  --warn:#e08066;
+  --shadow:0 1px 0 rgba(0,0,0,.4);
+}
+
+@font-face{
+  font-family:"Sans";
+}
+*{box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Source Serif 4","Georgia",serif;
+  margin:0;
+  padding:0 0 6rem;
+}
+h1,h2,h3,.display{
+  font-family:"Archivo Expanded","Arial Narrow",sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+  text-wrap:balance;
+}
+.mono,.num,input,select,textarea,button{
+  font-family:"IBM Plex Mono","SFMono-Regular",monospace;
+}
+a{color:var(--copper-deep);}
+
+/* ===== Header ===== */
+.masthead{
+  background:
+    repeating-linear-gradient(90deg, var(--line-soft) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(0deg, var(--line-soft) 0 1px, transparent 1px 40px),
+    var(--bg-raised);
+  border-bottom:3px double var(--copper-deep);
+  padding:2.6rem 2rem 2rem;
+}
+.masthead-inner{max-width:980px;margin:0 auto;display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;flex-wrap:wrap;}
+.masthead h1{
+  font-size:clamp(2rem,4vw,3.1rem);
+  margin:0 0 .3rem;
+  color:var(--copper-deep);
+  font-weight:800;
+}
+.masthead .sub{
+  color:var(--ink-soft);
+  font-size:.95rem;
+  max-width:44ch;
+  font-family:"Source Serif 4",serif;
+  font-style:italic;
+}
+.masthead .date{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:.78rem;
+  color:var(--ink-soft);
+  text-align:right;
+  letter-spacing:.04em;
+}
+
+main{max-width:980px;margin:0 auto;padding:0 2rem;}
+
+section{margin-top:3.2rem;}
+.section-head{display:flex;align-items:baseline;gap:.9rem;border-bottom:1px solid var(--line);padding-bottom:.6rem;margin-bottom:1.4rem;}
+.section-head .no{font-family:"IBM Plex Mono",monospace;color:var(--copper);font-size:.85rem;}
+.section-head h2{font-size:1.3rem;margin:0;color:var(--ink);}
+.section-head .tag{margin-left:auto;font-size:.72rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;font-family:"IBM Plex Mono",monospace;}
+.lede{color:var(--ink-soft);font-size:1rem;max-width:66ch;line-height:1.6;margin:0 0 1.6rem;}
+
+/* ===== Thermopause reference ===== */
+.rest-rail{
+  position:relative;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:0;
+  border:1px solid var(--line);
+  background:var(--bg-raised);
+  border-radius:2px;
+  overflow-x:auto;
+}
+.rest{
+  padding:1.2rem 1.1rem 1.4rem;
+  border-right:1px solid var(--line);
+  position:relative;
+  min-width:190px;
+}
+.rest:last-child{border-right:none;}
+.rest .band{
+  height:6px;
+  border-radius:3px;
+  margin-bottom:.9rem;
+}
+.rest[data-k="acid"] .band{background:linear-gradient(90deg,#8bb178,var(--acid));}
+.rest[data-k="protein"] .band{background:linear-gradient(90deg,var(--malt),#d6892f);}
+.rest[data-k="sacch"] .band{background:linear-gradient(90deg,var(--copper),var(--copper-deep));}
+.rest[data-k="mashout"] .band{background:linear-gradient(90deg,var(--warn),#7a2a17);}
+.rest .temp{font-family:"IBM Plex Mono",monospace;font-size:1.5rem;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;}
+.rest .temp small{font-size:.75rem;color:var(--ink-soft);font-weight:400;}
+.rest .name{margin:.25rem 0 .6rem;font-size:.98rem;font-weight:700;color:var(--copper-deep);text-transform:uppercase;letter-spacing:.03em;}
+.rest .dur{font-family:"IBM Plex Mono",monospace;font-size:.75rem;color:var(--ink-soft);margin-bottom:.7rem;}
+.rest p{font-size:.86rem;line-height:1.5;color:var(--ink-soft);margin:0 0 .5rem;}
+.rest .enz{font-size:.74rem;color:var(--hop);font-family:"IBM Plex Mono",monospace;}
+
+.profile-chart{margin-top:1.6rem;background:var(--bg-raised);border:1px solid var(--line);border-radius:2px;padding:1rem 1.2rem 0.6rem;overflow-x:auto;}
+.profile-chart svg{display:block;min-width:640px;}
+.profile-caption{font-size:.72rem;color:var(--ink-soft);text-align:center;padding:.4rem 0 .8rem;font-family:"IBM Plex Mono",monospace;}
+
+/* ===== Recipes ===== */
+.recipe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.1rem;}
+.card{
+  background:var(--bg-raised);
+  border:1px solid var(--line);
+  border-radius:2px;
+  padding:1.3rem 1.3rem 1.1rem;
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+  gap:.55rem;
+}
+.card .kicker{display:flex;justify-content:space-between;align-items:center;}
+.card .style{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--hop);font-family:"IBM Plex Mono",monospace;}
+.card .batch-no{font-size:.68rem;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;}
+.card h3{margin:0;font-size:1.15rem;color:var(--ink);text-transform:none;letter-spacing:0;font-family:"Source Serif 4",serif;font-weight:700;}
+.card .stats{display:flex;gap:1.1rem;font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--ink-soft);border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:.5rem 0;}
+.card .stats b{color:var(--copper-deep);font-variant-numeric:tabular-nums;}
+.card .schedule{font-size:.82rem;color:var(--ink-soft);line-height:1.6;}
+.card .schedule div{display:flex;gap:.5rem;}
+.card .schedule .t{font-family:"IBM Plex Mono",monospace;color:var(--ink);min-width:3.6em;font-variant-numeric:tabular-nums;}
+.card .notes{font-size:.83rem;font-style:italic;color:var(--ink-soft);margin-top:.2rem;}
+.card .ferments{font-size:.72rem;color:var(--ink-soft);}
+
+.example-flag{display:inline-block;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);border:1px dashed var(--line);border-radius:2px;padding:.1rem .4rem;margin-left:.4rem;}
+
+/* ===== Add recipe form ===== */
+.add-panel{background:var(--bg-raised);border:1px solid var(--line);border-radius:2px;padding:1.4rem 1.4rem 1.6rem;}
+.add-panel .row{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;}
+.add-panel .row.three{grid-template-columns:1fr 1fr 1fr;}
+label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:.3rem;font-family:"IBM Plex Mono",monospace;}
+input,select,textarea{
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:2px;
+  padding:.5rem .6rem;
+  color:var(--ink);
+  font-size:.85rem;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--copper);outline-offset:1px;}
+textarea{min-height:4.5rem;resize:vertical;}
+
+.step-builder{border:1px solid var(--line-soft);border-radius:2px;padding:.9rem;margin-bottom:1rem;background:var(--bg);}
+.step-row{display:grid;grid-template-columns:1.6fr 1fr 1fr auto;gap:.5rem;margin-bottom:.5rem;align-items:end;}
+.step-row:last-child{margin-bottom:0;}
+.btn{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:.76rem;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  border:1px solid var(--copper-deep);
+  background:transparent;
+  color:var(--copper-deep);
+  border-radius:2px;
+  padding:.5rem 1rem;
+  cursor:pointer;
+}
+.btn:hover{background:var(--copper-deep);color:var(--bg-raised);}
+.btn.primary{background:var(--copper-deep);color:var(--bg-raised);}
+.btn.primary:hover{background:var(--copper);border-color:var(--copper);}
+.btn.ghost{border-color:var(--line);color:var(--ink-soft);}
+.btn.small{padding:.35rem .6rem;font-size:.68rem;}
+.form-actions{display:flex;justify-content:space-between;align-items:center;margin-top:1rem;}
+.status-msg{font-size:.76rem;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;}
+
+/* ===== IBU calculator ===== */
+.calc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.9rem;margin-bottom:1rem;}
+.calc-grid.two{grid-template-columns:1fr 1fr;}
+.calc-grid.five{grid-template-columns:.8fr .8fr 1fr 1.1fr 1.3fr;align-items:end;}
+.calc-grid.five label{min-height:2.3em;}
+.readonly-field{background:var(--line-soft);border:1px solid var(--line);border-radius:2px;padding:.5rem .6rem;font-family:"IBM Plex Mono",monospace;font-size:.85rem;color:var(--ink-soft);}
+.hop-table{border:1px solid var(--line-soft);border-radius:2px;padding:.9rem;margin-bottom:.9rem;background:var(--bg);overflow-x:auto;}
+.hop-head,.hop-row{display:grid;grid-template-columns:1.3fr .8fr .7fr 1.2fr .8fr 1.1fr auto .9fr;gap:.5rem;align-items:end;min-width:900px;}
+.hop-head{margin-bottom:.4rem;}
+.hop-row{margin-bottom:.6rem;}
+.hop-row:last-child{margin-bottom:0;}
+.cost-head,.cost-row{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr auto 1fr;gap:.5rem;align-items:end;min-width:680px;}
+.cost-head{margin-bottom:.4rem;}
+.cost-row{margin-bottom:.6rem;}
+.cost-row:last-child{margin-bottom:0;}
+.hop-ibu-out{font-family:"IBM Plex Mono",monospace;font-size:.85rem;color:var(--copper-deep);font-variant-numeric:tabular-nums;padding:.5rem 0;text-align:right;}
+.calc-result{display:flex;gap:2.4rem;align-items:flex-end;flex-wrap:wrap;margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--line);}
+.ibu-total-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;margin-bottom:.2rem;}
+.ibu-total-value{font-family:"IBM Plex Mono",monospace;font-size:2.8rem;font-weight:600;color:var(--copper-deep);line-height:1;font-variant-numeric:tabular-nums;}
+.ibu-gauge{flex:1;min-width:260px;}
+.ibu-gauge svg{display:block;width:100%;height:56px;}
+.calc-note{font-size:.72rem;color:var(--ink-soft);margin-top:.9rem;line-height:1.5;}
+
+footer{max-width:980px;margin:3.5rem auto 0;padding:1.4rem 2rem 0;border-top:1px solid var(--line);color:var(--ink-soft);font-size:.75rem;font-family:"IBM Plex Mono",monospace;}
+
+:focus-visible{outline:2px solid var(--copper);outline-offset:2px;}
+@media (prefers-reduced-motion:no-preference){
+  .card,.rest{transition:transform .15s ease;}
+}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Expanded:wght@600;800&family=Source+Serif+4:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+</head>
+<body>
+<div class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <h1>Журнал пивовара</h1>
+      <div class="sub">Затирание, температурные паузы и варки — рабочий блокнот с рецептами (стартовая версия с примерами)</div>
+    </div>
+    <div class="date mono" id="today"></div>
+  </div>
+</div>
+
+<main>
+
+  <section id="reference">
+    <div class="section-head">
+      <span class="no">01</span>
+      <h2>Справочник термопауз</h2>
+      <span class="tag">затирание солода</span>
+    </div>
+    <p class="lede">Четыре паузы, которые встречаются в затирочных схемах — от кислотной до мэш-аута. Диапазоны и ферменты сверены по нескольким источникам о технологии пивоварения; при переносе в конкретный рецепт корректируйте под свой солод и оборудование.</p>
+
+    <div class="rest-rail" id="restRail"></div>
+
+    <div class="profile-chart">
+      <svg id="profileSvg" viewBox="0 0 900 260" role="img" aria-label="График температурного профиля затирания"></svg>
+      <div class="profile-caption">типовой профиль затирания · температура (°C) по оси Y, время по оси X — реальная схема зависит от рецепта</div>
+    </div>
+  </section>
+
+  <section id="recipes">
+    <div class="section-head">
+      <span class="no">02</span>
+      <h2>Рецепты</h2>
+      <span class="tag" id="recipeCount">— рецептов</span>
+    </div>
+    <p class="lede">Стартовая библиотека — 10 классических рецептов из открытых источников (American Homebrewers Association, Brew Your Own, Brewer's Friend): засыпь, схема затирания, хмель и дрожжи. Замените их своими профилями с контроллера или добавьте новые — любой рецепт можно подставить как основу новой варки в разделе «Новая запись» ниже.</p>
+    <div class="recipe-grid" id="recipeGrid"></div>
+  </section>
+
+  <section id="brews">
+    <div class="section-head">
+      <span class="no">03</span>
+      <h2>Варки</h2>
+      <span class="tag" id="brewCount">— записей</span>
+    </div>
+    <p class="lede">Журнал фактических варок — записи, добавленные через форму «Новая запись» ниже: реальные плотности, себестоимость, алкоголь, заметки. Ниже — одна тестовая запись для примера, замените её своей первой варкой.</p>
+    <div class="recipe-grid" id="brewGrid"></div>
+  </section>
+
+  <section id="ibu">
+    <div class="section-head">
+      <span class="no">04</span>
+      <h2>Калькулятор горечи (IBU)</h2>
+      <span class="tag">Тинсет / Рейджер</span>
+    </div>
+    <p class="lede">Оценка горечи по закладкам хмеля — по мотивам продвинутого IBU-калькулятора Бир.рф: учитывает объёмы и плотность сусла, до шести закладок хмеля на разных стадиях, форму хмеля и утилизацию на вирпуле/хопстенде в зависимости от способа охлаждения.</p>
+
+    <div class="add-panel">
+      <div class="calc-grid five">
+        <div>
+          <label for="c-prevol">Сусло до кипячения, л</label>
+          <input id="c-prevol" type="number" step="0.1" value="90">
+        </div>
+        <div>
+          <label for="c-postvol">Сусло после кипячения, л</label>
+          <input id="c-postvol" type="number" step="0.1" value="80">
+        </div>
+        <div>
+          <label for="c-scale">Шкала плотности</label>
+          <select id="c-scale">
+            <option value="plato" selected>°P (Plato)</option>
+            <option value="sg">SG (1,ххх)</option>
+          </select>
+        </div>
+        <div>
+          <label for="c-postsg" id="c-postsg-label">Плотность после кипячения</label>
+          <input id="c-postsg" type="number" step="0.1" value="12">
+        </div>
+        <div>
+          <label id="c-presg-label">Расчётная плотность до кипячения</label>
+          <div class="readonly-field" id="c-presg">—</div>
+        </div>
+      </div>
+      <div class="calc-grid">
+        <div>
+          <label for="c-wtime">Время вирпула/хопстенда, мин</label>
+          <input id="c-wtime" type="number" step="1" value="0">
+        </div>
+        <div>
+          <label for="c-wtemp">Температура вирпула, °C</label>
+          <input id="c-wtemp" type="number" step="1" value="94">
+        </div>
+        <div>
+          <label for="c-cooling">Метод охлаждения</label>
+          <select id="c-cooling">
+            <option value="immersion">Погружной чиллер</option>
+            <option value="counterflow">Противоточный чиллер</option>
+            <option value="ice" selected>Ледяная ванна</option>
+            <option value="none">Без охлаждения</option>
+          </select>
+        </div>
+        <div>
+          <label for="c-formula">Формула расчёта IBU</label>
+          <select id="c-formula">
+            <option value="tinseth" selected>Тинсет</option>
+            <option value="rager">Рейджер</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Внесение хмеля</label>
+      <div class="hop-table">
+        <div class="hop-head">
+          <label style="margin:0">Сорт хмеля</label>
+          <label style="margin:0">Вес, г</label>
+          <label style="margin:0">α, %</label>
+          <label style="margin:0">Стадия</label>
+          <label style="margin:0">Время, мин</label>
+          <label style="margin:0">Форма</label>
+          <span></span>
+          <label style="margin:0">IBU</label>
+        </div>
+        <div id="hopRows"></div>
+      </div>
+      <button class="btn small" id="addHopBtn" type="button">+ добавить закладку хмеля</button>
+
+      <div class="calc-result">
+        <div>
+          <div class="ibu-total-label">Итоговая горечь</div>
+          <div class="ibu-total-value" id="ibuTotal">0</div>
+        </div>
+        <div class="ibu-gauge">
+          <svg id="ibuGauge" viewBox="0 0 560 56" role="img" aria-label="Шкала IBU от 0 до 120"></svg>
+        </div>
+      </div>
+      <p class="calc-note">Формула Тинсета обычно даёт меньше IBU при внесении хмеля в начале кипячения и больше — в конце, по сравнению с Рейджером. Утилизация на вирпуле/хопстенде — приближённая оценка по температуре и способу охлаждения (противоточный чиллер гасит её сильнее всего, так как сусло остывает почти мгновенно). Затор и внесение в ферментёр горечи не дают.</p>
+    </div>
+  </section>
+
+  <section id="cost">
+    <div class="section-head">
+      <span class="no">05</span>
+      <h2>Себестоимость варки</h2>
+      <span class="tag">ингредиенты + электричество</span>
+    </div>
+    <p class="lede">Стоимость сырья по чекам плюс расход на нагрев обоими ТЭНами по вашему тарифу — итог на всю варку и на литр готового пива. Строки ниже — пример по учебному рецепту American Pale Ale, замените на свои цены.</p>
+
+    <div class="add-panel">
+      <label>Сырьё</label>
+      <div class="hop-table">
+        <div class="cost-head">
+          <label style="margin:0">Ингредиент</label>
+          <label style="margin:0">Цена упаковки, ₽</label>
+          <label style="margin:0">Объём уп.</label>
+          <label style="margin:0">Использовано</label>
+          <span></span>
+          <label style="margin:0">Стоимость, ₽</label>
+        </div>
+        <div id="costRows"></div>
+      </div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+        <button class="btn small" id="addCostBtn" type="button">+ добавить ингредиент</button>
+        <button class="btn ghost small" id="pullHopsToCostBtn" type="button">↑ добавить хмель из калькулятора IBU</button>
+      </div>
+      <p class="calc-note" style="margin-top:.5rem;">Кнопка подставляет сорт и вес каждой закладки хмеля из раздела «Калькулятор горечи» — цену и объём упаковки впишите по своему чеку. Повторное нажатие обновляет вес у уже подставленных сортов, а не дублирует строки.</p>
+
+      <div class="calc-grid" style="margin-top:1.2rem;">
+        <div>
+          <label for="e-tariff">Тариф, ₽/кВт·ч</label>
+          <input id="e-tariff" type="number" step="0.01" value="5">
+        </div>
+        <div>
+          <label for="e-mainkw">Главный ТЭН, кВт</label>
+          <input id="e-mainkw" type="number" step="0.1" value="6">
+        </div>
+        <div>
+          <label for="e-mainh">Главный ТЭН, ч за варку</label>
+          <input id="e-mainh" type="number" step="0.1" value="6">
+        </div>
+        <div>
+          <label for="e-spargekw">ТЭН промывки, кВт</label>
+          <input id="e-spargekw" type="number" step="0.1" value="2">
+        </div>
+      </div>
+      <div class="calc-grid two">
+        <div>
+          <label for="e-spargeh">ТЭН промывки, ч на нагрев</label>
+          <input id="e-spargeh" type="number" step="0.1" value="4">
+        </div>
+        <div>
+          <label for="e-volume">Объём готового пива, л</label>
+          <input id="e-volume" type="number" step="0.5" value="80">
+        </div>
+      </div>
+      <div class="calc-grid two">
+        <div>
+          <label for="e-bottle">Бутылка, ₽/л</label>
+          <input id="e-bottle" type="number" step="0.1" value="9">
+        </div>
+        <div>
+          <label for="e-co2">Углекислота (карбонизация + розлив), ₽/л</label>
+          <input id="e-co2" type="number" step="0.1" value="7">
+        </div>
+      </div>
+
+      <div class="calc-result">
+        <div>
+          <div class="ibu-total-label">Сырьё</div>
+          <div class="ibu-total-value" id="costIngr" style="font-size:1.6rem;">0 ₽</div>
+        </div>
+        <div>
+          <div class="ibu-total-label">Электричество</div>
+          <div class="ibu-total-value" id="costElec" style="font-size:1.6rem;">0 ₽</div>
+        </div>
+        <div>
+          <div class="ibu-total-label">Розлив (бутылка + CO₂)</div>
+          <div class="ibu-total-value" id="costBottling" style="font-size:1.6rem;">0 ₽</div>
+        </div>
+        <div>
+          <div class="ibu-total-label">Итого варка</div>
+          <div class="ibu-total-value" id="costTotal" style="font-size:1.6rem;">0 ₽</div>
+        </div>
+        <div>
+          <div class="ibu-total-label">На литр</div>
+          <div class="ibu-total-value" id="costPerLiter">0 ₽</div>
+        </div>
+      </div>
+      <p class="calc-note">Электричество = (мощность ТЭНа × время работы на полной мощности) × тариф, для обоих ТЭНов отдельно — реальное время под нагрузкой обычно меньше времени всей варки, так как контроллер держит паузы импульсно, а не на полной мощности всё время. Розлив = (бутылка + углекислота, ₽/л) × объём готового пива.</p>
+    </div>
+  </section>
+
+  <section id="add">
+    <div class="section-head">
+      <span class="no">06</span>
+      <h2>Новая запись</h2>
+      <span class="tag">добавить варку</span>
+    </div>
+    <div class="add-panel">
+      <p class="calc-note" id="editNotice" hidden style="color:var(--copper-deep);">Редактирование существующей записи — «Сохранить изменения» обновит её, «Очистить форму» отменит редактирование.</p>
+      <div class="row" style="margin-bottom:1.2rem;">
+        <div>
+          <label for="f-recipe-select">Начать из рецепта или из прошлой варки</label>
+          <select id="f-recipe-select"><option value="">— выбрать —</option></select>
+        </div>
+        <div style="align-self:end;">
+          <p class="calc-note" style="margin:0;">Подставит засыпь, воду, хмель, дрожжи и схему затирания. Плотности, номер варки и себестоимость впишете отдельно.</p>
+        </div>
+      </div>
+      <div class="row three">
+        <div>
+          <label for="f-name">Название / сорт</label>
+          <input id="f-name" placeholder="напр. Мюнхенский Хеллес">
+        </div>
+        <div>
+          <label for="f-style">Стиль</label>
+          <input id="f-style" placeholder="напр. Lager, Weizen, IPA">
+        </div>
+        <div>
+          <label for="f-batch">Номер варки</label>
+          <input id="f-batch" placeholder="напр. №14">
+        </div>
+      </div>
+      <div class="row three">
+        <div>
+          <label for="f-og">OG (начальная плотность)</label>
+          <input id="f-og" placeholder="1.048 или 12 (°P)">
+        </div>
+        <div>
+          <label for="f-fg">FG (конечная плотность)</label>
+          <input id="f-fg" placeholder="1.010 или 3 (°P)">
+        </div>
+        <div>
+          <label for="f-abv">Крепость, % ABV</label>
+          <input id="f-abv" placeholder="напр. 5.0">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="f-volume">Объём партии (готовое пиво), л</label>
+          <input id="f-volume" type="number" step="0.5" placeholder="напр. 80">
+        </div>
+        <div>
+          <label>Алкоголь во всей партии</label>
+          <div class="readonly-field" id="f-alcohol-preview">впишите ABV и объём партии</div>
+        </div>
+      </div>
+
+      <div class="row three">
+        <div>
+          <label for="f-mashwater">Вода на затор, л</label>
+          <input id="f-mashwater" placeholder="напр. 57">
+        </div>
+        <div>
+          <label for="f-spargewater">Промывочная вода, л</label>
+          <input id="f-spargewater" placeholder="напр. 52.5">
+        </div>
+        <div>
+          <label for="f-watertreat">Обработка воды</label>
+          <input id="f-watertreat" placeholder="напр. молочная кислота 0.5 мл, подогрев до 78°C">
+        </div>
+      </div>
+
+      <label>Схема затирания (паузы по порядку)</label>
+      <div class="step-builder" id="stepBuilder"></div>
+      <button class="btn small" id="addStepBtn" type="button">+ добавить паузу</button>
+
+      <div class="row" style="margin-top:1rem;">
+        <div>
+          <label for="f-ingr">Засыпь / ингредиенты</label>
+          <textarea id="f-ingr" placeholder="напр. Пилснер 4 кг, Мюнхенский 0.5 кг, хмель Saaz 20 г @60"></textarea>
+          <button class="btn ghost small" id="pullHopsBtn" type="button" style="margin-top:.5rem;">↑ добавить хмель из калькулятора IBU</button>
+        </div>
+        <div>
+          <label for="f-notes">Заметки о варке</label>
+          <textarea id="f-notes" placeholder="наблюдения, что изменить в следующий раз"></textarea>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:1rem;align-items:end;">
+        <div>
+          <label>Себестоимость варки</label>
+          <div class="readonly-field" id="f-cost-preview">не подставлена — заполните раздел «Себестоимость варки» выше и нажмите кнопку</div>
+        </div>
+        <div>
+          <button class="btn small" id="pullCostBtn" type="button">↑ подставить текущий расчёт из калькулятора себестоимости</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <span class="status-msg" id="statusMsg"></span>
+        <div style="display:flex;gap:.6rem;">
+          <button class="btn ghost" id="clearBtn" type="button">Очистить форму</button>
+          <button class="btn primary" id="saveBtn" type="button">Сохранить запись</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Журнал пивовара · записи хранятся в этой странице · <span id="modeNote">режим только для чтения на этом просмотре не определён</span>
+</footer>
+
+<script>
+const RESTS = [
+  {k:"acid", name:"Кислотная пауза", temp:[35,45], dur:"15–70 мин",
+   desc:"Снижает pH затора и содержание бета-глюканов, повышает прозрачность будущего пива.",
+   enz:"актуальна для светлого солода и несоложёного зерна"},
+  {k:"protein", name:"Белковая пауза", temp:[44,59], dur:"10–30 мин",
+   desc:"Протеазы расщепляют высокомолекулярные белки — лучше текучесть сусла, но пена может стать менее стойкой.",
+   enz:"протеазы · нужна при слабой модификации солода"},
+  {k:"sacch", name:"Осахаривание", temp:[61,72], dur:"50–120 мин",
+   desc:"Единственная обязательная пауза. Крахмал превращается в сахара сусла.",
+   enz:"β-амилаза 61–67° (сухое, крепкое) · α-амилаза 68–72° (плотное, сладкое)"},
+  {k:"mashout", name:"Мэш-аут", temp:[76,79], dur:"5 мин",
+   desc:"Останавливает работу ферментов, снижает вязкость сусла перед фильтрацией.",
+   enz:"фиксирует итоговый сахарный профиль"},
+];
+
+function renderRests(){
+  const rail = document.getElementById("restRail");
+  rail.innerHTML = RESTS.map(r => `
+    <div class="rest" data-k="${r.k}">
+      <div class="band"></div>
+      <div class="temp">${r.temp[0]}–${r.temp[1]}<small> °C</small></div>
+      <div class="name">${r.name}</div>
+      <div class="dur">⏱ ${r.dur}</div>
+      <p>${r.desc}</p>
+      <div class="enz">${r.enz}</div>
+    </div>
+  `).join("");
+}
+
+function renderProfileChart(){
+  // Illustrative composite profile across the four rests, drawn to scale.
+  const svg = document.getElementById("profileSvg");
+  const W = 900, H = 260, padL = 46, padR = 20, padT = 20, padB = 34;
+  const minT = 30, maxT = 82;
+  const points = [
+    {t:0, temp:38, label:"старт / кислотная"},
+    {t:20, temp:38},
+    {t:35, temp:50, label:"белковая"},
+    {t:50, temp:50},
+    {t:65, temp:66, label:"осахаривание"},
+    {t:145, temp:66},
+    {t:155, temp:78, label:"мэш-аут"},
+    {t:175, temp:78},
+  ];
+  const maxTime = points[points.length-1].t;
+  const x = t => padL + (t/maxTime) * (W - padL - padR);
+  const y = temp => H - padB - ((temp-minT)/(maxT-minT)) * (H - padT - padB);
+
+  let grid = "";
+  for(let temp = 30; temp <= 80; temp += 10){
+    grid += `<line x1="${padL}" y1="${y(temp)}" x2="${W-padR}" y2="${y(temp)}" stroke="var(--line)" stroke-width="1" opacity="0.6"/>`;
+    grid += `<text x="${padL-10}" y="${y(temp)+4}" text-anchor="end" font-size="11" fill="var(--ink-soft)" font-family="IBM Plex Mono, monospace">${temp}°</text>`;
+  }
+  grid += `<line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--ink-soft)" stroke-width="1"/>`;
+
+  const path = points.map((p,i) => `${i===0?"M":"L"} ${x(p.t)} ${y(p.temp)}`).join(" ");
+
+  const labels = points.filter(p=>p.label).map(p => `
+    <circle cx="${x(p.t)}" cy="${y(p.temp)}" r="4" fill="var(--copper-deep)"/>
+    <text x="${x(p.t)}" y="${y(p.temp)-12}" text-anchor="middle" font-size="11.5" fill="var(--ink)" font-family="IBM Plex Mono, monospace">${p.label}</text>
+  `).join("");
+
+  svg.innerHTML = `${grid}
+    <path d="${path}" fill="none" stroke="var(--copper)" stroke-width="2.5"/>
+    ${labels}
+    <text x="${(padL+W-padR)/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--ink-soft)" font-family="IBM Plex Mono, monospace">время →</text>`;
+}
+
+// ---- Recipe data ----
+// controllerSteps() builds a thermopause step list in the same shape a
+// "Distiller"-style controller profile would use, if you want to seed
+// seedRecipes with your own controller profiles later.
+function controllerSteps(active){
+  const steps = [{name:"Засыпка солода", temp:35, dur:null}];
+  if(active.acid) steps.push({name:"Кислотная", temp:35, dur:1});
+  if(active.protein) steps.push({name:"Белковая", temp:active.protein[0], dur:active.protein[1]});
+  if(active.maltose) steps.push({name:"Мальтозная", temp:active.maltose[0], dur:active.maltose[1]});
+  if(active.sacch) steps.push({name:"Осахаривание", temp:active.sacch[0], dur:active.sacch[1]});
+  if(active.mashout) steps.push({name:"Мэш-аут", temp:active.mashout[0], dur:active.mashout[1]});
+  return steps;
+}
+
+const seedRecipes = [];
+
+let userRecipes = [
+  {
+    name:"Тестовая варка — American Pale Ale (пример)", style:"American Pale Ale · тестовая запись", batch:"тест 1",
+    og:"1.056 (13.8°P)", fg:"1.013 (3.2°P)", abv:"5.7", volume:"19",
+    mashWater:"14", spargeWater:"18", waterTreat:"без коррекции (пример)",
+    steps:[
+      {name:"Осахаривание", temp:67, dur:60},
+      {name:"Мэш-аут", temp:76, dur:10},
+    ],
+    ingredients:"Pale ale солод 4.6 кг + Munich 300 г + Victory (бисквитный) 300 г + пшеничный солод 200 г · хмель: Horizon 15 г (13% α) @60 мин, Centennial 14 г + Cascade 14 г @10 мин, Centennial 14 г + Cascade 14 г @0 мин (флэймаут) — ≈40 IBU · дрожжи SafAle US-05",
+    notes:"Пример записи варки по рецепту American Pale Ale (Brew Your Own, открытый источник) — отредактируйте или удалите кнопками ниже и впишите свою первую варку.",
+    example:true,
+  },
+];
+
+let userRecipeLibrary = [
+  {
+    name:"American Pale Ale", style:"American Pale Ale",
+    steps:[
+      {name:"Осахаривание", temp:67, dur:60},
+      {name:"Мэш-аут", temp:76, dur:10},
+    ],
+    recipe:{
+      grain:"Pale ale солод 4.6 кг + Munich 300 г + Victory (бисквитный) 300 г + пшеничный солод 200 г",
+      water:"Партия 19 л · OG 1.056 · FG 1.013 · ABV 5.7% · кипячение 60 мин",
+      hopSchedule:"Horizon 15 г (13% α) @60 мин · Centennial 14 г + Cascade 14 г @10 мин · Centennial 14 г + Cascade 14 г @0 мин (флэймаут)",
+      ibu:"≈40",
+      yeast:"WLP001 / Wyeast 1056 / SafAle US-05",
+    },
+    sourceNote:"Brew Your Own — byo.com/recipes/american-pale-ale",
+  },
+  {
+    name:"American IPA (Rushmore IPA)", style:"American IPA",
+    steps:[
+      {name:"Осахаривание", temp:67, dur:60},
+      {name:"Мэш-аут", temp:76, dur:0},
+    ],
+    recipe:{
+      grain:"Pale ale солод 5.0 кг + Munich 450 г + карамельный солод 40L 230 г",
+      water:"Партия 19 л · OG 1.059 · FG 1.015 · ABV 6% · кипячение 60 мин",
+      hopSchedule:"Nugget 28 г (13% α) @60 мин · Cascade 14 г + Amarillo 14 г + Centennial 14 г @15 мин · те же по 14 г @0 мин · те же по 14 г сухое охмеление",
+      ibu:"≈70",
+      yeast:"Американские элевые дрожжи (стартер ~250 млрд клеток)",
+    },
+    sourceNote:"American Homebrewers Association — Rushmore IPA",
+  },
+  {
+    name:"Dry Irish Stout (Mt. Brandon)", style:"Ирландский сухой стаут",
+    steps:[
+      {name:"Осахаривание", temp:66, dur:60},
+    ],
+    recipe:{
+      grain:"Солод пейл эль 2-рядный 3.06 кг + жжёный ячмень (roasted barley) 340 г + карамельный солод 90L 113 г + шоколадный солод 113 г + сахар (в конце кипячения) 227 г",
+      water:"Партия 19 л · OG 1.042 · FG 1.006 · ABV 4.7% · кипячение 60 мин",
+      hopSchedule:"Target 28 г (11% α) @60 мин · East Kent Golding 14 г (5.7% α) @15 мин · ирландский мох 1 ч.л. @15 мин",
+      ibu:"≈32",
+      yeast:"White Labs WLP007 (Dry English Ale)",
+    },
+    sourceNote:"American Homebrewers Association — Mt. Brandon Irish Stout",
+  },
+  {
+    name:"Hefeweizen (Holier than Meow)", style:"Пшеничное (Hefeweizen)",
+    steps:[
+      {name:"Осахаривание", temp:65, dur:70},
+      {name:"Мэш-аут", temp:76, dur:0},
+    ],
+    recipe:{
+      grain:"Пилснер солод 2 кг + красный пшеничный солод 2 кг",
+      water:"Партия 19 л · OG 1.048 · FG 1.010 · ABV 4.9% · кипячение 60–75 мин",
+      hopSchedule:"Hallertau 34 г (4% α) @60 мин",
+      ibu:"≈18",
+      yeast:"Wyeast 3068 Weihenstephan / WLP300 (стартер ~1.2 л)",
+    },
+    sourceNote:"American Homebrewers Association — Holier than Meow Hefeweizen",
+  },
+  {
+    name:"Belgian Witbier (с кориандром и апельсином)", style:"Бельгийский витбир",
+    steps:[
+      {name:"Белковая", temp:50, dur:15},
+      {name:"Промежуточная", temp:68, dur:15},
+      {name:"Осахаривание", temp:68, dur:60},
+      {name:"Мэш-аут", temp:76, dur:0},
+    ],
+    recipe:{
+      grain:"Бельгийский пилснер солод 3.3 кг + хлопья пшеницы 2.6 кг + хлопья овса 0.6 кг + мюнхенский солод 100 г + рисовая шелуха 250 г (для фильтрации)",
+      water:"Партия ~21.5 л · OG 1.050 · FG 1.011 · ABV 5.1% · кипячение 100 мин · сладж 77°C, 9 л на промывку",
+      hopSchedule:"Hallertau Tradition 35 г @60 мин · за 5 мин до конца кипячения: апельсиновая цедра 55 г, кориандр молотый 14 г, сушёная ромашка 1.3 г",
+      ibu:"≈21",
+      yeast:"White Labs WLP400 (Belgian Wit Ale), брожение при 20°C",
+    },
+    sourceNote:"Brewer's Friend — Belgian Wit with coriander, orange, and chamomile",
+  },
+  {
+    name:"English Porter (Thames Porter)", style:"Английский портер",
+    steps:[
+      {name:"Осахаривание", temp:66, dur:60},
+      {name:"Мэш-аут", temp:76, dur:0},
+    ],
+    recipe:{
+      grain:"Солод пейл эль 2-рядный 3.4 кг + коричневый солод (brown malt) 340 г + шоколадный солод 227 г + карамельный солод 55L 227 г + карамельный солод 150L 57 г",
+      water:"Партия ~21 л · OG 1.049 · FG 1.012 · ABV ~4.8% · кипячение 60 мин",
+      hopSchedule:"Northern Brewer 21 г (9.5% α) @60 мин · East Kent Golding 14 г (4.8% α) @10 мин",
+      ibu:"≈27",
+      yeast:"London Ale (Wyeast 1028 / WLP013)",
+    },
+    sourceNote:"American Homebrewers Association — Thames Porter",
+  },
+  {
+    name:"Belgian Saison", style:"Сезонное (Saison)",
+    steps:[
+      {name:"Белковая", temp:50, dur:20},
+      {name:"Осахаривание", temp:63, dur:75},
+      {name:"Мэш-аут", temp:78, dur:15},
+    ],
+    recipe:{
+      grain:"Пилснер солод 3 кг + хлопья пшеницы 1 кг + ржаной солод 400 г",
+      water:"Партия 19 л · OG 1.048 · FG 1.003 · ABV 5.9% · кипячение 60 мин",
+      hopSchedule:"Hallertau Magnum 15 г (14% α) @60 мин",
+      ibu:"≈26",
+      yeast:"Wyeast 3724 Belgian Saison / 3726 Farmhouse Ale",
+    },
+    sourceNote:"Brew Your Own — Belgian-Style Saison",
+  },
+  {
+    name:"Kölsch (ступенчатое затирание)", style:"Кёльш",
+    steps:[
+      {name:"Кислотная", temp:55, dur:10},
+      {name:"Белковая", temp:63, dur:45},
+      {name:"Осахаривание", temp:70, dur:20},
+      {name:"Мэш-аут", temp:76, dur:10},
+    ],
+    recipe:{
+      grain:"Немецкий пилснер солод 4.08 кг + венский солод 113 г + карамельный солод Caravienne/Cara20 85 г",
+      water:"Партия 19 л · OG 1.046 · FG 1.011 · ABV 4.5% · кипячение 60 мин",
+      hopSchedule:"Liberty 9 г (4.3% α) — первое сусло · Hallertauer 28 г (4% α) @30 мин · Crystal 11 г (5% α) @5 мин",
+      ibu:"≈18",
+      yeast:"WLP029 / Wyeast 2565 / SafAle K-97, брожение при 14°C с подъёмом до 20°C",
+    },
+    sourceNote:"Brew Your Own — Step-Mashed Kölsch",
+  },
+  {
+    name:"English Brown Ale (Newcastle-style)", style:"Английский коричневый эль",
+    steps:[
+      {name:"Осахаривание", temp:68, dur:60},
+    ],
+    recipe:{
+      grain:"Солод пейл эль 2-рядный 3.86 кг + карамельный солод 55L 454 г + чёрный солод 43 г + шоколадный солод 43 г + пшеница жареная (torrefied) 113 г",
+      water:"Партия 19 л · OG 1.043 · FG 1.010 · ABV 4.33% · кипячение 90 мин",
+      hopSchedule:"East Kent Golding 28 г (5% α) @90 мин · East Kent Golding 28 г (5% α) @30 мин · ирландский мох 1 ч.л.",
+      ibu:"≈27",
+      yeast:"Wyeast 1028 Special London / WLP013",
+    },
+    sourceNote:"American Homebrewers Association — Newcastle Brown Ale Clone (адаптировано на 19 л)",
+  },
+  {
+    name:"Belgian Dubbel (Dubious Dubbel)", style:"Бельгийский дуббель",
+    steps:[
+      {name:"Настаивание солода (стипинг)", temp:68, dur:30},
+    ],
+    recipe:{
+      grain:"Жидкий пилснер-экстракт 2.72 кг + жидкий мюнхенский экстракт 680 г + тёмный кандийный сироп D2 340 г + карамельный солод CaraMunich 340 г (стипинг) + ароматный солод (Aromatic) 340 г (стипинг) + Special B 170 г (стипинг)",
+      water:"Партия 19 л · OG 1.069 · FG 1.016 · ABV 6.9% · кипячение 60 мин",
+      hopSchedule:"Styrian Goldings 21 г (4.6% α) @60 мин · Saaz 28 г (4% α) @15 мин",
+      ibu:"≈13",
+      yeast:"WLP500 / Wyeast 1214 Trappist Ale (стартер 2 л)",
+    },
+    sourceNote:"American Homebrewers Association — Dubious Dubbel",
+  },
+];
+
+function renderRecipeLibrary(){
+  const all = [...seedRecipes, ...userRecipeLibrary];
+  document.getElementById("recipeCount").textContent = all.length + " " + declineEntries(all.length);
+  document.getElementById("recipeGrid").innerHTML = all.map((r, i) => {
+    if(r.controller){
+      const hopsOn = r.hops.filter(h => h.on);
+      return `
+      <div class="card">
+        <div class="kicker">
+          <span class="style">${r.style ? escapeHtml(r.style) : "стиль не указан"}</span>
+          <span class="batch-no">${escapeHtml(r.batch||"—")}</span>
+        </div>
+        <h3>${escapeHtml(r.name)}</h3>
+        <div class="stats">
+          <span>Мощность <b>${r.power.main}%</b></span>
+          <span>Пониж. <b>${r.power.reduced}%</b></span>
+          <span>Кипячение <b>${r.boil.time} мин</b></span>
+        </div>
+        <div class="schedule">
+          ${r.steps.map(s => `<div><span class="t">${s.temp}°C</span><span>${escapeHtml(s.name)}${s.dur ? " — " + s.dur + " мин" : ""}</span></div>`).join("")}
+          <div><span class="t">${r.boil.start}°C</span><span>Кипячение — ${r.boil.time} мин @ ${r.boil.power}%</span></div>
+        </div>
+        ${r.recipe ? `
+        <div class="ferments">${escapeHtml(r.recipe.grain)}</div>
+        <div class="ferments">${escapeHtml(r.recipe.water)}</div>
+        <div class="ferments">Хмель/добавки: ${escapeHtml(r.recipe.hopSchedule)}${r.recipe.ibu ? " · итого " + escapeHtml(r.recipe.ibu) + " IBU" : ""}</div>
+        <div class="ferments">Дрожжи: ${escapeHtml(r.recipe.yeast)}</div>
+        ${r.cost ? `<div class="ferments">Себестоимость: сырьё ${r.cost.ingr}₽ + электричество ${r.cost.elec}₽${r.cost.bottling != null ? ` + розлив ${r.cost.bottling}₽` : ""} = ${r.cost.total}₽ · <b style="color:var(--copper-deep)">${r.cost.perLiter}₽/л</b></div>` : ""}
+        <div class="notes">Таймер закладок на контроллере: ${hopsOn.length ? hopsOn.map(h => h.n + " на " + h.min + " мин").join(" · ") : "не задействован"}. OG/FG — дозаполните после варки.</div>
+        ` : `
+        ${hopsOn.length ? `<div class="ferments">Хмель: ${hopsOn.map(h => "закладка " + h.n + " на " + h.min + " мин").join(" · ")}</div>` : ""}
+        <div class="notes">Профиль контроллера Distiller — засыпь и OG/FG не хранятся автоматикой, дозаполните вручную.</div>
+        `}
+      </div>`;
+    }
+    const libIdx = i - seedRecipes.length;
+    return `
+    <div class="card">
+      <div class="kicker">
+        <span class="style">${escapeHtml(r.style||"—")}</span>
+        <span class="batch-no">рецепт</span>
+      </div>
+      <h3>${escapeHtml(r.name)}</h3>
+      <div class="schedule">
+        ${r.steps.map(s => `<div><span class="t">${s.temp}°C</span><span>${escapeHtml(s.name)}${s.dur ? " — " + s.dur + " мин" : ""}</span></div>`).join("")}
+      </div>
+      ${r.recipe ? `
+      <div class="ferments">${escapeHtml(r.recipe.grain)}</div>
+      ${r.recipe.water ? `<div class="ferments">${escapeHtml(r.recipe.water)}</div>` : ""}
+      ${r.recipe.hopSchedule ? `<div class="ferments">Хмель/добавки: ${escapeHtml(r.recipe.hopSchedule)}${r.recipe.ibu ? " · итого " + escapeHtml(r.recipe.ibu) + " IBU" : ""}</div>` : ""}
+      ${r.recipe.yeast ? `<div class="ferments">Дрожжи: ${escapeHtml(r.recipe.yeast)}</div>` : ""}
+      ` : ""}
+      ${r.sourceBatch ? `<div class="notes">Сделан из варки: ${escapeHtml(r.sourceBatch)}</div>` : ""}
+      ${r.sourceNote ? `<div class="notes">Источник: ${escapeHtml(r.sourceNote)}</div>` : ""}
+      <div style="display:flex;gap:.5rem;margin-top:.9rem;">
+        <button class="btn ghost small" type="button" onclick="deleteLibraryRecipe(${libIdx})">Удалить рецепт</button>
+      </div>
+    </div>`;
+  }).join("");
+  populateStartFromSelect();
+}
+
+function renderBrews(){
+  document.getElementById("brewCount").textContent = userRecipes.length + " " + declineEntries(userRecipes.length);
+  document.getElementById("brewGrid").innerHTML = userRecipes.map((r, i) => {
+    return `
+    <div class="card">
+      <div class="kicker">
+        <span class="style">${escapeHtml(r.style||"—")}</span>
+        <span class="batch-no">варка ${escapeHtml(r.batch||"—")}</span>
+      </div>
+      <h3>${escapeHtml(r.name)}</h3>
+      <div class="stats">
+        <span>OG <b>${escapeHtml(r.og||"—")}</b></span>
+        <span>FG <b>${escapeHtml(r.fg||"—")}</b></span>
+        <span>ABV <b>${escapeHtml(r.abv||"—")}%</b></span>
+      </div>
+      <div class="schedule">
+        ${r.steps.map(s => `<div><span class="t">${s.temp}°C</span><span>${escapeHtml(s.name)} — ${s.dur} мин</span></div>`).join("")}
+      </div>
+      ${(() => { const a = computeAlcohol(r.volume, r.abv); return a ? `<div class="ferments">Алкоголь во всей партии (${escapeHtml(r.volume)} л): <b style="color:var(--copper-deep)">≈${a.liters} л чистого спирта</b> (~${a.grams} г)</div>` : ""; })()}
+      ${(r.mashWater || r.spargeWater) ? `<div class="ferments">Вода: ${r.mashWater ? "затор " + escapeHtml(r.mashWater) + " л" : ""}${r.mashWater && r.spargeWater ? " · " : ""}${r.spargeWater ? "промывка " + escapeHtml(r.spargeWater) + " л" : ""}${r.waterTreat ? " (" + escapeHtml(r.waterTreat) + ")" : ""}</div>` : ""}
+      ${r.ingredients ? `<div class="ferments">${escapeHtml(r.ingredients)}</div>` : ""}
+      ${r.cost ? `<div class="ferments">Себестоимость: сырьё ${r.cost.ingr}₽ + электричество ${r.cost.elec}₽${r.cost.bottling != null ? ` + розлив ${r.cost.bottling}₽` : ""} = ${r.cost.total}₽ · <b style="color:var(--copper-deep)">${r.cost.perLiter}₽/л</b></div>` : ""}
+      ${r.notes ? `<div class="notes">${escapeHtml(r.notes)}</div>` : ""}
+      <div style="display:flex;gap:.5rem;margin-top:.9rem;flex-wrap:wrap;">
+        ${!r.og ? `<button class="btn small" type="button" onclick="quickSetGravity(${i}, 'og')">Записать факт. OG</button>` : ""}
+        ${(r.og && !r.fg) ? `<button class="btn small" type="button" onclick="quickSetGravity(${i}, 'fg')">Записать факт. FG (брожение завершено)</button>` : ""}
+        <button class="btn ghost small" type="button" onclick="editRecipe(${i})">Редактировать</button>
+        <button class="btn ghost small" type="button" onclick="promoteToRecipe(${i})">Сделать рецептом</button>
+        <button class="btn ghost small" type="button" onclick="deleteRecipe(${i})">Удалить</button>
+      </div>
+    </div>`;
+  }).join("");
+  populateStartFromSelect();
+}
+
+function declineEntries(n){
+  const mod10 = n % 10, mod100 = n % 100;
+  if(mod10===1 && mod100!==11) return "запись";
+  if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return "записи";
+  return "записей";
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// ---- Step builder ----
+let stepCount = 0;
+function addStepRow(preset){
+  stepCount++;
+  const id = "step" + stepCount;
+  const wrap = document.createElement("div");
+  wrap.className = "step-row";
+  wrap.dataset.id = id;
+  wrap.innerHTML = `
+    <div>
+      <label>Название паузы</label>
+      <input class="step-name" value="${preset ? preset.name : ''}" placeholder="напр. Осахаривание">
+    </div>
+    <div>
+      <label>Темп., °C</label>
+      <input class="step-temp" type="number" value="${preset ? preset.temp[0] : ''}" placeholder="65">
+    </div>
+    <div>
+      <label>Мин.</label>
+      <input class="step-dur" type="number" value="${preset ? '60' : ''}" placeholder="60">
+    </div>
+    <button class="btn ghost small" type="button" onclick="this.closest('.step-row').remove()">✕</button>
+  `;
+  document.getElementById("stepBuilder").appendChild(wrap);
+}
+
+document.getElementById("addStepBtn").addEventListener("click", () => addStepRow(null));
+
+function addStepRowExact(step){
+  stepCount++;
+  const wrap = document.createElement("div");
+  wrap.className = "step-row";
+  wrap.innerHTML = `
+    <div>
+      <label>Название паузы</label>
+      <input class="step-name" value="${escapeHtml(step.name || '')}" placeholder="напр. Осахаривание">
+    </div>
+    <div>
+      <label>Темп., °C</label>
+      <input class="step-temp" type="number" value="${step.temp || ''}" placeholder="65">
+    </div>
+    <div>
+      <label>Мин.</label>
+      <input class="step-dur" type="number" value="${step.dur || ''}" placeholder="60">
+    </div>
+    <button class="btn ghost small" type="button" onclick="this.closest('.step-row').remove()">✕</button>
+  `;
+  document.getElementById("stepBuilder").appendChild(wrap);
+}
+
+function readSteps(){
+  return [...document.querySelectorAll(".step-row")].map(row => ({
+    name: row.querySelector(".step-name").value.trim() || "Пауза",
+    temp: Number(row.querySelector(".step-temp").value) || 0,
+    dur: Number(row.querySelector(".step-dur").value) || 0,
+  })).filter(s => s.temp > 0 || s.dur > 0);
+}
+
+function clearForm(){
+  ["f-name","f-style","f-batch","f-og","f-fg","f-abv","f-volume","f-mashwater","f-spargewater","f-watertreat","f-ingr","f-notes"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("f-recipe-select").value = "";
+  document.getElementById("f-alcohol-preview").textContent = "впишите ABV и объём партии";
+  document.getElementById("stepBuilder").innerHTML = "";
+  RESTS.slice(2,4).forEach(r => addStepRow(r));
+  stepCount = 0;
+  pendingCost = null;
+  document.getElementById("f-cost-preview").textContent = "не подставлена — заполните раздел «Себестоимость варки» выше и нажмите кнопку";
+  editingIndex = null;
+  document.getElementById("saveBtn").textContent = "Сохранить запись";
+  document.getElementById("editNotice").hidden = true;
+}
+
+let editingIndex = null;
+
+function parseWaterText(text){
+  if(!text) return { mash:"", sparge:"" };
+  const mashM = text.match(/затор[^\d]*(\d+[.,]?\d*)\s*л/i);
+  const spargeM = text.match(/промывк[а-я]*[^\d]*(\d+[.,]?\d*)\s*л/i);
+  return {
+    mash: mashM ? mashM[1].replace(",", ".") : "",
+    sparge: spargeM ? spargeM[1].replace(",", ".") : "",
+  };
+}
+
+function populateStartFromSelect(){
+  const sel = document.getElementById("f-recipe-select");
+  if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— выбрать —</option>';
+  const recipeAll = [...seedRecipes, ...userRecipeLibrary];
+  if(recipeAll.length){
+    const grp = document.createElement("optgroup");
+    grp.label = "Рецепты";
+    recipeAll.forEach((r, i) => {
+      const opt = document.createElement("option");
+      opt.value = "recipe:" + i;
+      opt.textContent = r.name + (r.style ? " — " + r.style : "");
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  }
+  if(userRecipes.length){
+    const grp2 = document.createElement("optgroup");
+    grp2.label = "Варки";
+    userRecipes.forEach((r, i) => {
+      const opt = document.createElement("option");
+      opt.value = "brew:" + i;
+      opt.textContent = r.name + (r.batch ? " (" + r.batch + ")" : "");
+      grp2.appendChild(opt);
+    });
+    sel.appendChild(grp2);
+  }
+  sel.value = prev && [...sel.options].some(o => o.value === prev) ? prev : "";
+}
+
+function resetGravityAndCostFields(){
+  document.getElementById("f-og").value = "";
+  document.getElementById("f-fg").value = "";
+  document.getElementById("f-abv").value = "";
+  document.getElementById("f-volume").value = "";
+  document.getElementById("f-alcohol-preview").textContent = "впишите ABV и объём партии";
+  pendingCost = null;
+  document.getElementById("f-cost-preview").textContent = "не подставлена — заполните раздел «Себестоимость варки» выше и нажмите кнопку";
+  editingIndex = null;
+  document.getElementById("saveBtn").textContent = "Сохранить запись";
+  document.getElementById("editNotice").hidden = true;
+}
+
+function loadStartFrom(){
+  const raw = document.getElementById("f-recipe-select").value;
+  if(!raw) return;
+  const sep = raw.indexOf(":");
+  const kind = raw.slice(0, sep);
+  const idx = Number(raw.slice(sep + 1));
+
+  if(kind === "recipe"){
+    const r = [...seedRecipes, ...userRecipeLibrary][idx];
+    if(!r) return;
+    document.getElementById("f-name").value = r.name || "";
+    document.getElementById("f-style").value = r.style || "";
+    document.getElementById("stepBuilder").innerHTML = "";
+    stepCount = 0;
+    (r.steps || []).forEach(s => addStepRowExact(s));
+    document.getElementById("f-mashwater").value = "";
+    document.getElementById("f-spargewater").value = "";
+    document.getElementById("f-watertreat").value = "";
+    document.getElementById("f-ingr").value = "";
+    document.getElementById("f-notes").value = "";
+    if(r.recipe){
+      const w = parseWaterText(r.recipe.water);
+      document.getElementById("f-mashwater").value = w.mash;
+      document.getElementById("f-spargewater").value = w.sparge;
+      document.getElementById("f-watertreat").value = r.recipe.water || "";
+      const ingrParts = [
+        r.recipe.grain,
+        r.recipe.hopSchedule ? "Хмель: " + r.recipe.hopSchedule + (r.recipe.ibu ? " — итого " + r.recipe.ibu + " IBU" : "") : "",
+        r.recipe.yeast ? "Дрожжи: " + r.recipe.yeast : "",
+      ].filter(Boolean);
+      document.getElementById("f-ingr").value = ingrParts.join(" · ");
+    }
+    resetGravityAndCostFields();
+    setStatus(`Подставлен рецепт «${r.name}» — проверьте и дополните данные перед сохранением.`);
+  } else if(kind === "brew"){
+    const r = userRecipes[idx];
+    if(!r) return;
+    document.getElementById("f-name").value = r.name || "";
+    document.getElementById("f-style").value = r.style || "";
+    document.getElementById("f-batch").value = "";
+    document.getElementById("f-mashwater").value = r.mashWater || "";
+    document.getElementById("f-spargewater").value = r.spargeWater || "";
+    document.getElementById("f-watertreat").value = r.waterTreat || "";
+    document.getElementById("f-ingr").value = r.ingredients || "";
+    document.getElementById("f-notes").value = "";
+    document.getElementById("stepBuilder").innerHTML = "";
+    stepCount = 0;
+    (r.steps || []).forEach(s => addStepRowExact(s));
+    resetGravityAndCostFields();
+    document.getElementById("f-volume").value = r.volume || "";
+    setStatus(`Подставлена варка «${r.name}» как основа новой записи — впишите новый номер варки и факт. плотности после варки.`);
+  }
+}
+
+function editRecipe(idx){
+  const r = userRecipes[idx];
+  if(!r) return;
+  editingIndex = idx;
+  document.getElementById("f-name").value = r.name || "";
+  document.getElementById("f-style").value = r.style || "";
+  document.getElementById("f-batch").value = r.batch || "";
+  document.getElementById("f-og").value = r.og || "";
+  document.getElementById("f-fg").value = r.fg || "";
+  document.getElementById("f-abv").value = r.abv || "";
+  document.getElementById("f-volume").value = r.volume || "";
+  updateAlcoholPreview();
+  document.getElementById("f-mashwater").value = r.mashWater || "";
+  document.getElementById("f-spargewater").value = r.spargeWater || "";
+  document.getElementById("f-watertreat").value = r.waterTreat || "";
+  document.getElementById("f-ingr").value = r.ingredients || "";
+  document.getElementById("f-notes").value = r.notes || "";
+  document.getElementById("stepBuilder").innerHTML = "";
+  stepCount = 0;
+  (r.steps || []).forEach(s => addStepRowExact(s));
+  pendingCost = r.cost ? { ...r.cost } : null;
+  renderCostPreview();
+  document.getElementById("saveBtn").textContent = "Сохранить изменения";
+  document.getElementById("editNotice").hidden = false;
+  document.getElementById("add").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function computeAlcohol(volumeStr, abvStr){
+  const volume = parseFloat(String(volumeStr).replace(",", "."));
+  const abv = parseFloat(String(abvStr).replace(",", "."));
+  if(volume > 0 && abv > 0){
+    const liters = volume * abv / 100;
+    const grams = liters * 789; // плотность этанола ≈ 0.789 г/мл
+    return { liters: liters.toFixed(2), grams: Math.round(grams) };
+  }
+  return null;
+}
+
+function updateAlcoholPreview(){
+  const volume = document.getElementById("f-volume").value.trim();
+  let abv = document.getElementById("f-abv").value.trim();
+  if(!abv){
+    const og = document.getElementById("f-og").value.trim();
+    const fg = document.getElementById("f-fg").value.trim();
+    if(og && fg) abv = estimateABV(og, fg);
+  }
+  const preview = document.getElementById("f-alcohol-preview");
+  const result = computeAlcohol(volume, abv);
+  preview.textContent = result
+    ? `≈${result.liters} л чистого спирта (~${result.grams} г) при ${abv}% ABV на ${volume} л`
+    : "впишите ABV и объём партии";
+}
+
+function estimateABV(ogStr, fgStr){
+  const og = parseFloat(String(ogStr).replace(",", "."));
+  const fg = parseFloat(String(fgStr).replace(",", "."));
+  if(og > 1 && fg > 1 && og > fg){
+    return ((og - fg) * 131.25).toFixed(1);
+  }
+  return null;
+}
+
+async function quickSetGravity(idx, field){
+  const r = userRecipes[idx];
+  if(!r) return;
+  const label = field === "og" ? "фактическую начальную плотность (OG)" : "фактическую конечную плотность (FG)";
+  const raw = prompt(`Впишите ${label}.\nМожно как SG (напр. 1.048) или в Brix/Plato (напр. 12) — определю сам по величине числа:`, "");
+  if(raw === null) return;
+  const num = parseFloat(String(raw).replace(",", "."));
+  if(isNaN(num)){
+    alert("Не удалось распознать число — запись не изменена.");
+    return;
+  }
+  const isBrix = num >= 2; // SG всегда в районе 1.000–1.150, Brix/Plato обычно 0–30
+
+  if(field === "og"){
+    if(isBrix){
+      r.ogBrix = num;
+      r.og = platoToSG(num).toFixed(3) + ` (${num}°Brix)`;
+    } else {
+      delete r.ogBrix;
+      r.og = num.toFixed(3);
+    }
+  } else {
+    if(isBrix){
+      r.fgBrix = num;
+      const ogBrix = r.ogBrix != null ? r.ogBrix : (r.og ? sgToPlato(parseFloat(r.og)) : num);
+      const corrected = correctFGFromBrix(ogBrix, num);
+      r.fg = corrected.toFixed(3) + ` (${num}°Brix, коррекция на спирт)`;
+    } else {
+      delete r.fgBrix;
+      r.fg = num.toFixed(3);
+    }
+  }
+
+  if(r.og && r.fg && !r.abv){
+    const abv = estimateABV(r.og, r.fg);
+    if(abv) r.abv = abv;
+  }
+
+  renderBrews();
+  setStatus("Сохранение…");
+  await persistData("Плотность записана и сохранена.", "Плотность записана и сохранена локально в этом браузере.");
+}
+
+async function deleteRecipe(idx){
+  const r = userRecipes[idx];
+  if(!r) return;
+  if(!confirm(`Удалить запись «${r.name}»?`)) return;
+  userRecipes.splice(idx, 1);
+  if(editingIndex === idx) clearForm();
+  renderBrews();
+  setStatus("Удаление…");
+  await persistData("Запись удалена и сохранена.", "Запись удалена и сохранена локально в этом браузере.");
+}
+
+async function promoteToRecipe(idx){
+  const r = userRecipes[idx];
+  if(!r) return;
+  const waterParts = [];
+  if(r.mashWater) waterParts.push("Затор " + r.mashWater + " л");
+  if(r.spargeWater) waterParts.push("промывка " + r.spargeWater + " л");
+  let waterText = waterParts.join(" · ");
+  if(r.waterTreat) waterText += (waterText ? " с " : "") + r.waterTreat;
+
+  const recipe = {
+    name: r.name,
+    style: r.style,
+    steps: (r.steps || []).map(s => ({...s})),
+    recipe: {
+      grain: r.ingredients || "—",
+      water: waterText,
+      hopSchedule: "",
+      ibu: "",
+      yeast: "",
+    },
+    sourceBatch: r.batch ? `варка ${r.batch}` : r.name,
+  };
+  userRecipeLibrary.push(recipe);
+  renderRecipeLibrary();
+  await persistData(`«${r.name}» добавлен в библиотеку рецептов и сохранён.`, `«${r.name}» добавлен в библиотеку рецептов и сохранён локально в этом браузере.`);
+}
+
+async function deleteLibraryRecipe(idx){
+  const r = userRecipeLibrary[idx];
+  if(!r) return;
+  if(!confirm(`Удалить рецепт «${r.name}» из библиотеки?`)) return;
+  userRecipeLibrary.splice(idx, 1);
+  renderRecipeLibrary();
+  setStatus("Удаление…");
+  await persistData("Рецепт удалён и сохранён.", "Рецепт удалён и сохранён локально в этом браузере.");
+}
+
+function pullHopsIntoForm(){
+  calcIBU();
+  const rows = [...document.querySelectorAll(".hop-row")];
+  if(rows.length === 0){
+    setStatus("В калькуляторе IBU нет ни одной закладки хмеля.");
+    return;
+  }
+  const parts = rows.map(row => {
+    const name = row.querySelector(".hop-name").value.trim() || "хмель без названия";
+    const weight = row.querySelector(".hop-weight").value || "0";
+    const alpha = row.querySelector(".hop-alpha").value || "0";
+    const stage = row.querySelector(".hop-stage").value;
+    const time = row.querySelector(".hop-time").value;
+    const form = row.querySelector(".hop-form").value;
+    const ibu = row.querySelector(".hop-ibu-out").textContent;
+    return `${name} ${weight} г (${alpha}%) — ${stage}${time ? ", " + time + " мин" : ""} (${form}) — ${ibu} IBU`;
+  });
+  const total = document.getElementById("ibuTotal").textContent;
+  const formula = document.getElementById("c-formula").value === "tinseth" ? "Тинсет" : "Рейджер";
+  const hopText = `Хмель (из калькулятора IBU): ${parts.join(" · ")} — итого ≈${total} IBU (${formula})`;
+
+  const ingrField = document.getElementById("f-ingr");
+  ingrField.value = ingrField.value.trim() ? ingrField.value.trim() + "\n" + hopText : hopText;
+  setStatus("Хмель подставлен в поле «Засыпь / ингредиенты».");
+}
+
+function pullHopsToCost(){
+  calcIBU();
+  const hopRows = [...document.querySelectorAll(".hop-row")];
+  if(hopRows.length === 0){
+    setStatus("В калькуляторе IBU нет ни одной закладки хмеля.");
+    return;
+  }
+  let added = 0, updated = 0;
+  hopRows.forEach(hopRow => {
+    const name = hopRow.querySelector(".hop-name").value.trim() || "Хмель";
+    const weight = Number(hopRow.querySelector(".hop-weight").value) || 0;
+    const existing = [...document.querySelectorAll(".cost-row")].find(r => r.dataset.hopSync === name);
+    if(existing){
+      existing.querySelector(".cost-used").value = weight;
+      updated++;
+    } else {
+      addCostRow({name, used: weight});
+      const newRow = document.getElementById("costRows").lastElementChild;
+      newRow.dataset.hopSync = name;
+      added++;
+    }
+  });
+  calcCost();
+  setStatus(`Хмель из калькулятора IBU подставлен в себестоимость сырья (добавлено: ${added}, обновлено: ${updated}) — впишите цену и объём упаковки по чеку.`);
+}
+
+function pullCostIntoForm(){
+  calcCost();
+  if(!lastCost){
+    setStatus("Сначала заполните раздел «Себестоимость варки».");
+    return;
+  }
+  pendingCost = { ...lastCost };
+  renderCostPreview();
+}
+
+// ₽/л в превью считаем по текущему объёму партии в этой форме (а не по объёму,
+// который был в калькуляторе на момент подстановки) — так поле "Объём партии"
+// и себестоимость на литр не расходятся, если объём потом поправить.
+function renderCostPreview(){
+  const el = document.getElementById("f-cost-preview");
+  if(!pendingCost){
+    el.textContent = "не подставлена — заполните раздел «Себестоимость варки» выше и нажмите кнопку";
+    return;
+  }
+  const volNum = parseFloat(document.getElementById("f-volume").value.trim().replace(",", "."));
+  const perLiter = volNum > 0 ? Math.round((pendingCost.total / volNum) * 10) / 10 : pendingCost.perLiter;
+  el.textContent = `сырьё ${pendingCost.ingr}₽ + электричество ${pendingCost.elec}₽${pendingCost.bottling != null ? ` + розлив ${pendingCost.bottling}₽` : ""} = ${pendingCost.total}₽ · ${perLiter}₽/л${volNum > 0 ? "" : " (впишите объём партии для пересчёта)"}`;
+}
+
+// ---- IBU calculator (Tinseth / Rager, approximate whirlpool handling) ----
+const HOP_STAGES = ["Затор", "Первое сусло", "Кипячение", "Вирпул/хопстенд", "Ферментер"];
+const HOP_FORMS = {
+  "Гранулы": 1.00,
+  "Цельный": 0.90,
+  "Брикеты": 0.97,
+  "Экстракты": 1.00,
+  "Свежий": 0.25,
+};
+const COOLING_FACTORS = { immersion: 0.7, counterflow: 0.4, ice: 0.85, none: 1.0 };
+
+let hopRowCount = 0;
+function addHopRow(preset){
+  hopRowCount++;
+  const wrap = document.createElement("div");
+  wrap.className = "hop-row";
+  wrap.innerHTML = `
+    <input class="hop-name" value="${escapeHtml(preset?.name ?? '')}" placeholder="напр. Cascade">
+    <input class="hop-weight" type="number" step="1" value="${preset?.weight ?? ''}" placeholder="20">
+    <input class="hop-alpha" type="number" step="0.1" value="${preset?.alpha ?? ''}" placeholder="12">
+    <select class="hop-stage">
+      ${HOP_STAGES.map(s => `<option ${preset?.stage===s?'selected':''}>${s}</option>`).join("")}
+    </select>
+    <input class="hop-time" type="number" step="1" value="${preset?.time ?? ''}" placeholder="60">
+    <select class="hop-form">
+      ${Object.keys(HOP_FORMS).map(f => `<option ${preset?.form===f?'selected':''}>${f}</option>`).join("")}
+    </select>
+    <button class="btn ghost small" type="button" aria-label="Удалить закладку">✕</button>
+    <div class="hop-ibu-out">0.0</div>
+  `;
+  wrap.querySelector("button").addEventListener("click", () => { wrap.remove(); calcIBU(); });
+  wrap.querySelectorAll("input,select").forEach(el => el.addEventListener("input", calcIBU));
+  document.getElementById("hopRows").appendChild(wrap);
+}
+
+function platoToSG(p){ return 1 + p/(258.6 - (p/258.2)*227.1); }
+function sgToPlato(sg){ return -463.37 + 668.72*sg - 205.35*sg*sg; }
+
+// Достаёт градусы Plato/Brix из текста вида "1.044 (11°P)" или "12°Brix",
+// либо, если это просто SG (напр. "1.044"), пересчитывает его в Plato.
+function extractPlatoFromText(text){
+  if(!text) return null;
+  const tagged = String(text).match(/\(?\s*([\d.]+)\s*°?\s*(?:P|Plato|Brix)\)?/i);
+  if(tagged) return parseFloat(tagged[1]);
+  const num = parseFloat(text);
+  if(isNaN(num)) return null;
+  return num >= 2 ? num : sgToPlato(num);
+}
+
+// Автоконвертация полей OG/FG в форме: если вписано голое число ≥2, считаем
+// его градусами Plato/Brix и переводим в SG, подписывая исходное значение.
+// Для FG дополнительно применяем коррекцию рефрактометра на спирт (Террилл),
+// если удаётся определить OG в Plato — из соседнего поля OG.
+function autoConvertGravityField(inputEl, isFG){
+  const raw = inputEl.value.trim();
+  if(!/^\d+([.,]\d+)?$/.test(raw)) return; // не голое число — ничего не трогаем (уже SG или уже с пометкой)
+  const num = parseFloat(raw.replace(",", "."));
+  if(isNaN(num) || num < 2) return; // похоже на SG (напр. "1.05"), а не на Plato — не трогаем
+  if(!isFG){
+    inputEl.value = platoToSG(num).toFixed(3) + ` (${num}°P)`;
+  } else {
+    const ogText = document.getElementById("f-og").value;
+    const obPlato = extractPlatoFromText(ogText);
+    if(obPlato != null){
+      const corrected = correctFGFromBrix(obPlato, num);
+      inputEl.value = corrected.toFixed(3) + ` (${num}°P, коррекция на спирт)`;
+    } else {
+      inputEl.value = platoToSG(num).toFixed(3) + ` (${num}°P, без коррекции — впишите OG для точности)`;
+    }
+  }
+}
+
+// Коррекция показаний рефрактометра на спирт (кубическая формула Шона Террилла):
+// FG = 1.0000 - 0.0044993*OB + 0.011774*FB + 0.00027581*OB² - 0.0012717*FB² - 0.0000072800*OB³ + 0.000063293*FB³
+function correctFGFromBrix(obBrix, fbBrix){
+  const OB = obBrix, FB = fbBrix;
+  return 1.0000 - 0.0044993*OB + 0.011774*FB + 0.00027581*OB*OB - 0.0012717*FB*FB - 0.0000072800*OB*OB*OB + 0.000063293*FB*FB*FB;
+}
+
+function getGravities(){
+  const scale = document.getElementById("c-scale").value; // 'sg' or 'plato'
+  const preVol = Number(document.getElementById("c-prevol").value) || 0;
+  const postVol = Number(document.getElementById("c-postvol").value) || 0;
+  const postRaw = Number(document.getElementById("c-postsg").value) || 0;
+  let preRaw;
+  if(preVol > 0){
+    preRaw = scale === "plato" ? postRaw * postVol / preVol : 1 + (postRaw - 1) * postVol / preVol;
+  } else {
+    preRaw = postRaw;
+  }
+  const postSG = scale === "plato" ? platoToSG(postRaw) : postRaw;
+  const preSG = scale === "plato" ? platoToSG(preRaw) : preRaw;
+  document.getElementById("c-presg").textContent = preVol > 0
+    ? (scale === "plato" ? preRaw.toFixed(1) : preRaw.toFixed(3))
+    : "—";
+  return {postSG, preSG};
+}
+
+function tinsethUtilization(avgSG, minutes){
+  const bigness = 1.65 * Math.pow(0.000125, avgSG - 1);
+  const boilFactor = (1 - Math.exp(-0.04 * minutes)) / 4.15;
+  return bigness * boilFactor;
+}
+
+function ragerUtilization(minutes, postSG){
+  let u = 18.11 + 13.86 * Math.tanh((minutes - 31.32) / 18.27);
+  u = Math.max(u, 0) / 100;
+  const gravityFactor = postSG > 1.050 ? 1 + (postSG - 1.050) / 0.2 : 1;
+  return u / gravityFactor;
+}
+
+function updateScaleLabels(){
+  const scale = document.getElementById("c-scale").value;
+  const postInput = document.getElementById("c-postsg");
+  if(scale === "plato"){
+    document.getElementById("c-postsg-label").textContent = "Плотность после кипячения, °P";
+    document.getElementById("c-presg-label").textContent = "Расч. плотность до кипячения, °P";
+    postInput.step = "0.1";
+  } else {
+    document.getElementById("c-postsg-label").textContent = "Плотность после кипячения (SG)";
+    document.getElementById("c-presg-label").textContent = "Расч. плотность до кипячения (SG)";
+    postInput.step = "0.001";
+  }
+}
+
+function calcIBU(){
+  const { postSG, preSG } = getGravities();
+  const postVol = Number(document.getElementById("c-postvol").value) || 0;
+
+  const wTime = Number(document.getElementById("c-wtime").value) || 0;
+  const wTemp = Number(document.getElementById("c-wtemp").value) || 0;
+  const cooling = document.getElementById("c-cooling").value;
+  const formula = document.getElementById("c-formula").value;
+  const avgBoilSG = (preSG + postSG) / 2;
+  const tempFactor = Math.max(0, Math.min(1, (wTemp - 60) / 40));
+  const coolMult = COOLING_FACTORS[cooling] ?? 1;
+
+  let total = 0;
+  document.querySelectorAll(".hop-row").forEach(row => {
+    const weight = Number(row.querySelector(".hop-weight").value) || 0;
+    const alpha = Number(row.querySelector(".hop-alpha").value) || 0;
+    const stage = row.querySelector(".hop-stage").value;
+    const time = Number(row.querySelector(".hop-time").value) || 0;
+    const form = row.querySelector(".hop-form").value;
+    const formFactor = HOP_FORMS[form] ?? 1;
+
+    const mgPerL = postVol > 0 ? (weight * (alpha / 100) * 1000) / postVol : 0;
+    let utilization = 0;
+
+    if(stage === "Кипячение" || stage === "Первое сусло"){
+      utilization = formula === "tinseth" ? tinsethUtilization(avgBoilSG, time) : ragerUtilization(time, postSG);
+    } else if(stage === "Вирпул/хопстенд"){
+      const effTime = time || wTime;
+      const base = formula === "tinseth" ? tinsethUtilization(postSG, effTime) : ragerUtilization(effTime, postSG);
+      utilization = base * tempFactor * coolMult;
+    } else {
+      utilization = 0; // Затор, Ферментер — горечи не дают
+    }
+
+    const ibu = mgPerL * utilization * formFactor;
+    row.querySelector(".hop-ibu-out").textContent = ibu.toFixed(1);
+    total += ibu;
+  });
+
+  document.getElementById("ibuTotal").textContent = total.toFixed(1);
+  renderIbuGauge(total);
+}
+
+function renderIbuGauge(value){
+  const svg = document.getElementById("ibuGauge");
+  const W = 560, H = 56, padL = 8, padR = 8, barY = 30, barH = 10, max = 120;
+  const x = v => padL + Math.min(v, max) / max * (W - padL - padR);
+  const ticks = [0, 20, 40, 60, 80, 100, 120];
+  const ticksSvg = ticks.map(t => `
+    <line x1="${x(t)}" y1="${barY+barH}" x2="${x(t)}" y2="${barY+barH+5}" stroke="var(--ink-soft)" stroke-width="1"/>
+    <text x="${x(t)}" y="${barY+barH+17}" text-anchor="middle" font-size="10" fill="var(--ink-soft)" font-family="IBM Plex Mono, monospace">${t}</text>
+  `).join("");
+  const markerX = x(value);
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="ibuGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="var(--malt)"/>
+        <stop offset="55%" stop-color="var(--copper)"/>
+        <stop offset="100%" stop-color="var(--hop)"/>
+      </linearGradient>
+    </defs>
+    <rect x="${padL}" y="${barY}" width="${W-padL-padR}" height="${barH}" rx="3" fill="url(#ibuGrad)"/>
+    ${ticksSvg}
+    <polygon points="${markerX-6},${barY-8} ${markerX+6},${barY-8} ${markerX},${barY-1}" fill="var(--ink)"/>
+  `;
+}
+
+function initIbuCalc(){
+  addHopRow({name:"Magnum", weight:200, alpha:12, stage:"Кипячение", time:60, form:"Гранулы"});
+  addHopRow({name:"Saaz", weight:150, alpha:8, stage:"Кипячение", time:15, form:"Гранулы"});
+  addHopRow({name:"Cascade", weight:100, alpha:6, stage:"Вирпул/хопстенд", time:0, form:"Гранулы"});
+  document.getElementById("addHopBtn").addEventListener("click", () => { addHopRow(null); calcIBU(); });
+  updateScaleLabels();
+  document.getElementById("c-scale").addEventListener("change", () => { updateScaleLabels(); calcIBU(); });
+  ["c-prevol","c-postvol","c-postsg","c-wtime","c-wtemp","c-cooling","c-formula"].forEach(id => {
+    document.getElementById(id).addEventListener("input", calcIBU);
+  });
+  calcIBU();
+}
+
+// ---- Brew cost calculator ----
+let costRowCount = 0;
+let lastCost = null;
+let pendingCost = null;
+function addCostRow(preset){
+  costRowCount++;
+  const wrap = document.createElement("div");
+  wrap.className = "cost-row";
+  wrap.innerHTML = `
+    <input class="cost-name" value="${preset?.name ?? ''}" placeholder="напр. Солод Пилснер">
+    <input class="cost-price" type="number" step="0.01" value="${preset?.price ?? ''}" placeholder="3104">
+    <input class="cost-pack" type="number" step="0.01" value="${preset?.pack ?? ''}" placeholder="25 (кг/г/шт)">
+    <input class="cost-used" type="number" step="0.01" value="${preset?.used ?? ''}" placeholder="17.5">
+    <button class="btn ghost small" type="button" aria-label="Удалить">✕</button>
+    <div class="hop-ibu-out" style="text-align:right;">0</div>
+  `;
+  wrap.querySelector("button").addEventListener("click", () => { wrap.remove(); calcCost(); });
+  wrap.querySelectorAll("input").forEach(el => el.addEventListener("input", calcCost));
+  document.getElementById("costRows").appendChild(wrap);
+}
+
+function calcCost(){
+  let ingrTotal = 0;
+  document.querySelectorAll(".cost-row").forEach(row => {
+    const price = Number(row.querySelector(".cost-price").value) || 0;
+    const pack = Number(row.querySelector(".cost-pack").value) || 0;
+    const used = Number(row.querySelector(".cost-used").value) || 0;
+    const cost = pack > 0 ? (price / pack) * used : 0;
+    row.querySelector(".hop-ibu-out").textContent = cost.toFixed(2);
+    ingrTotal += cost;
+  });
+
+  const tariff = Number(document.getElementById("e-tariff").value) || 0;
+  const mainKw = Number(document.getElementById("e-mainkw").value) || 0;
+  const mainH = Number(document.getElementById("e-mainh").value) || 0;
+  const spargeKw = Number(document.getElementById("e-spargekw").value) || 0;
+  const spargeH = Number(document.getElementById("e-spargeh").value) || 0;
+  const elecCost = (mainKw * mainH + spargeKw * spargeH) * tariff;
+
+  const volume = Number(document.getElementById("e-volume").value) || 0;
+  const bottlePerL = Number(document.getElementById("e-bottle").value) || 0;
+  const co2PerL = Number(document.getElementById("e-co2").value) || 0;
+  const bottlingCost = (bottlePerL + co2PerL) * volume;
+
+  const total = ingrTotal + elecCost + bottlingCost;
+  const perLiter = volume > 0 ? total / volume : 0;
+
+  document.getElementById("costIngr").textContent = ingrTotal.toFixed(0) + " ₽";
+  document.getElementById("costElec").textContent = elecCost.toFixed(0) + " ₽";
+  document.getElementById("costBottling").textContent = bottlingCost.toFixed(0) + " ₽";
+  document.getElementById("costTotal").textContent = total.toFixed(0) + " ₽";
+  document.getElementById("costPerLiter").textContent = perLiter.toFixed(1) + " ₽";
+
+  lastCost = {
+    ingr: Math.round(ingrTotal),
+    elec: Math.round(elecCost),
+    bottling: Math.round(bottlingCost),
+    total: Math.round(total),
+    perLiter: Math.round(perLiter * 10) / 10,
+  };
+}
+
+function initCostCalc(){
+  addCostRow({name:"Солод Pale Ale", price:2800, pack:25, used:4.6});
+  addCostRow({name:"Хмель Horizon", price:350, pack:100, used:15});
+  addCostRow({name:"Хмель Centennial", price:380, pack:100, used:28});
+  addCostRow({name:"Хмель Cascade", price:360, pack:100, used:28});
+  addCostRow({name:"Дрожжи US-05", price:450, pack:1, used:1});
+  document.getElementById("addCostBtn").addEventListener("click", () => { addCostRow(null); calcCost(); });
+  ["e-tariff","e-mainkw","e-mainh","e-spargekw","e-spargeh","e-volume","e-bottle","e-co2"].forEach(id => {
+    document.getElementById(id).addEventListener("input", calcCost);
+  });
+  calcCost();
+}
+
+// ---- Artifact persistence ----
+let artifactApi = null;
+let canWrite = false;
+
+async function initArtifact(){
+  try{
+    artifactApi = await claude.use("artifact");
+  }catch(e){ artifactApi = null; }
+  const note = document.getElementById("modeNote");
+  if(artifactApi){
+    canWrite = true;
+    note.textContent = "новые записи сохраняются для всех, кто откроет журнал";
+  } else {
+    note.textContent = "записи сохраняются локально в этом браузере (localStorage) — видны только на этом устройстве и в этом браузере";
+  }
+}
+
+const LOCAL_STORAGE_KEY = "beerJournalData";
+
+function saveToLocalStorage(){
+  try{
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ userRecipes, userRecipeLibrary }));
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function loadFromLocalStorage(){
+  try{
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if(!stored) return false;
+    const parsed = JSON.parse(stored);
+    userRecipes = parsed.userRecipes || [];
+    userRecipeLibrary = parsed.userRecipeLibrary || [];
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+// Единая точка сохранения: если журнал открыт как артефакт Claude — публикует в облако;
+// иначе пишет в localStorage этого браузера, так что журнал работает и без интернета.
+// Это отдельная версия без общего сервера — каждый, кто откроет файл, ведёт свою копию.
+async function persistData(cloudMsg, localMsg){
+  const savedLocally = saveToLocalStorage();
+
+  if(canWrite){
+    try{
+      const doc = buildFullDocument();
+      await artifactApi.publish(doc);
+      setStatus(cloudMsg);
+      return;
+    }catch(e){
+      setStatus("Не удалось сохранить в облако (" + (e && e.code ? e.code : "ошибка") + ")" + (savedLocally ? " — сохранено локально в этом браузере." : "."));
+      return;
+    }
+  }
+  setStatus(savedLocally ? localMsg : "Сохранение недоступно (нет доступа к localStorage в этом браузере).");
+}
+
+function buildFullDocument(){
+  // Serialize current DOM shell with updated userRecipes/userRecipeLibrary baked in as seed data,
+  // so a republish captures the journal's full current state.
+  const doctype = "<!doctype html>\n";
+  const htmlEl = document.documentElement.cloneNode(true);
+  const script = htmlEl.querySelector("#dataScript");
+  if(script){
+    script.textContent = "window.__SAVED_RECIPES__ = " + JSON.stringify({ userRecipes, userRecipeLibrary }) + ";";
+  }
+  return doctype + htmlEl.outerHTML;
+}
+
+async function saveRecipe(){
+  const name = document.getElementById("f-name").value.trim();
+  if(!name){
+    setStatus("Укажите название рецепта.");
+    return;
+  }
+  const steps = readSteps();
+  if(steps.length === 0){
+    setStatus("Добавьте хотя бы одну паузу в схему затирания.");
+    return;
+  }
+  const ogVal = document.getElementById("f-og").value.trim();
+  const fgVal = document.getElementById("f-fg").value.trim();
+  let abvVal = document.getElementById("f-abv").value.trim();
+  if(!abvVal && ogVal && fgVal){
+    const estAbv = estimateABV(ogVal, fgVal);
+    if(estAbv) abvVal = estAbv;
+  }
+  const volumeVal = document.getElementById("f-volume").value.trim();
+
+  // Себестоимость подставляется из калькулятора как снимок (сырьё/электричество/
+  // розлив/итого фиксированы), но ₽/л пересчитываем по объёму партии, вписанному
+  // в этой форме — так изменение объёма после подстановки не оставляет ₽/л устаревшим.
+  let costVal = pendingCost;
+  const volNum = parseFloat(volumeVal.replace(",", "."));
+  if(costVal && volNum > 0){
+    costVal = { ...costVal, perLiter: Math.round((costVal.total / volNum) * 10) / 10 };
+  }
+
+  const rec = {
+    name,
+    style: document.getElementById("f-style").value.trim(),
+    batch: document.getElementById("f-batch").value.trim(),
+    og: ogVal,
+    fg: fgVal,
+    abv: abvVal,
+    volume: volumeVal,
+    mashWater: document.getElementById("f-mashwater").value.trim(),
+    spargeWater: document.getElementById("f-spargewater").value.trim(),
+    waterTreat: document.getElementById("f-watertreat").value.trim(),
+    steps,
+    ingredients: document.getElementById("f-ingr").value.trim(),
+    notes: document.getElementById("f-notes").value.trim(),
+    cost: costVal,
+    example:false,
+  };
+
+  const isEdit = editingIndex !== null && userRecipes[editingIndex];
+  if(isEdit){
+    userRecipes[editingIndex] = rec;
+  } else {
+    userRecipes.push(rec);
+  }
+  renderBrews();
+  clearForm();
+
+  setStatus("Сохранение…");
+  await persistData(
+    isEdit ? "Изменения сохранены." : "Сохранено — запись останется в журнале.",
+    isEdit ? "Изменения сохранены локально в этом браузере." : "Сохранено локально в этом браузере."
+  );
+}
+
+function setStatus(msg){
+  document.getElementById("statusMsg").textContent = msg;
+}
+
+// ---- Boot ----
+document.getElementById("today").textContent = new Date().toLocaleDateString("ru-RU", {year:"numeric", month:"long", day:"numeric"});
+renderRests();
+renderProfileChart();
+
+(async function boot(){
+  if(window.__SAVED_RECIPES__){
+    const saved = window.__SAVED_RECIPES__;
+    if(Array.isArray(saved)){
+      userRecipes = saved; // формат до появления библиотеки рецептов
+    } else {
+      userRecipes = saved.userRecipes || [];
+      userRecipeLibrary = saved.userRecipeLibrary || [];
+    }
+  } else {
+    // Отдельный файл без сервера — подхватываем последнее состояние из
+    // localStorage этого браузера, если оно уже есть (иначе остаются
+    // примеры рецептов и тестовая варка, зашитые в файл).
+    loadFromLocalStorage();
+  }
+  renderRecipeLibrary();
+  renderBrews();
+  clearForm();
+  initIbuCalc();
+  initCostCalc();
+
+  document.getElementById("saveBtn").addEventListener("click", saveRecipe);
+  document.getElementById("clearBtn").addEventListener("click", clearForm);
+  document.getElementById("pullCostBtn").addEventListener("click", pullCostIntoForm);
+  document.getElementById("pullHopsBtn").addEventListener("click", pullHopsIntoForm);
+  document.getElementById("pullHopsToCostBtn").addEventListener("click", pullHopsToCost);
+  document.getElementById("f-recipe-select").addEventListener("change", loadStartFrom);
+  ["f-og","f-fg","f-abv","f-volume"].forEach(id => {
+    document.getElementById(id).addEventListener("input", updateAlcoholPreview);
+  });
+  document.getElementById("f-volume").addEventListener("input", renderCostPreview);
+  document.getElementById("f-og").addEventListener("blur", e => { autoConvertGravityField(e.target, false); updateAlcoholPreview(); });
+  document.getElementById("f-fg").addEventListener("blur", e => { autoConvertGravityField(e.target, true); updateAlcoholPreview(); });
+
+  initArtifact();
+})();
+</script>
+<script id="dataScript">window.__SAVED_RECIPES__ = null;</script>
+
+</body>
+</html>
