@@ -63,11 +63,3 @@ data/                       — пустая папка-заглушка; на �
 ![Библиотека рецептов](docs/screenshots/3_recepty.png)
 ![Калькулятор IBU](docs/screenshots/4_ibu.png)
 ![Себестоимость варки](docs/screenshots/5_sebestoimost.png)
-
-## Скриншоты
-
-![Главная страница](docs/screenshots/1_glavnaya.png)
-![Справочник термопауз](docs/screenshots/2_termopauzy.png)
-![Библиотека рецептов](docs/screenshots/3_recepty.png)
-![Калькулятор IBU](docs/screenshots/4_ibu.png)
-![Себестоимость варки](docs/screenshots/5_sebestoimost.png)
