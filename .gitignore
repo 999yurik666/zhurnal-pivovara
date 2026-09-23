@@ -1,0 +1,8 @@
+# Actual shared-storage data written by api.php on a deployed server —
+# never commit your real recipes/brews here.
+data/journal-data.json
+data/rapt-token-cache.json
+
+# Your real RAPT account credentials — copy from config.local.example.php
+# and fill in locally, never commit this file.
+config.local.php

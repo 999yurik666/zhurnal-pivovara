@@ -541,6 +541,22 @@ footer{max-width:980px;margin:3.5rem auto 0;padding:1.4rem 2rem 0;border-top:1px
         </div>
       </div>
 
+      <div class="row" id="raptRow" hidden style="margin-top:1rem;align-items:end;">
+        <div>
+          <label><input type="checkbox" id="f-rapt-enabled"> Использовать RAPT Pill для этой варки</label>
+          <select id="f-rapt-device" disabled><option value="">— выбрать ареометр —</option></select>
+        </div>
+        <div>
+          <label>Текущие показания RAPT</label>
+          <div class="readonly-field" id="f-rapt-current">включите чекбокс и выберите ареометр</div>
+          <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+            <button class="btn ghost small" type="button" id="raptPullOgBtn" disabled>↑ подставить OG</button>
+            <button class="btn ghost small" type="button" id="raptPullFgBtn" disabled>↑ подставить FG</button>
+          </div>
+        </div>
+      </div>
+      <p class="calc-note" id="raptUnavailNote" hidden style="margin-top:1rem;">RAPT Pill недоступен на этом просмотре журнала: показания подключаются только через свой PHP-бэкенд (api.php) с настроенным <code>config.local.php</code> — см. README, раздел про RAPT.</p>
+
       <div class="row three">
         <div>
           <label for="f-mashwater">Вода на затор, л</label>
@@ -938,6 +954,7 @@ function renderBrews(){
       ${r.ingredients ? `<div class="ferments">${escapeHtml(r.ingredients)}</div>` : ""}
       ${r.cost ? `<div class="ferments">Себестоимость: сырьё ${r.cost.ingr}₽ + электричество ${r.cost.elec}₽${r.cost.bottling != null ? ` + розлив ${r.cost.bottling}₽` : ""} = ${r.cost.total}₽ · <b style="color:var(--copper-deep)">${r.cost.perLiter}₽/л</b></div>` : ""}
       ${r.notes ? `<div class="notes">${escapeHtml(r.notes)}</div>` : ""}
+      ${r.raptDeviceId ? `<div id="rapt-panel-${i}" class="ferments">RAPT «${escapeHtml(r.raptDeviceName||"")}»: загрузка…</div>` : ""}
       <div style="display:flex;gap:.5rem;margin-top:.9rem;flex-wrap:wrap;">
         ${!r.og ? `<button class="btn small" type="button" onclick="quickSetGravity(${i}, 'og')">Записать факт. OG</button>` : ""}
         ${(r.og && !r.fg) ? `<button class="btn small" type="button" onclick="quickSetGravity(${i}, 'fg')">Записать факт. FG (брожение завершено)</button>` : ""}
@@ -948,6 +965,7 @@ function renderBrews(){
     </div>`;
   }).join("");
   populateStartFromSelect();
+  loadRaptPanelsForBrews();
 }
 
 function declineEntries(n){
@@ -1031,6 +1049,10 @@ function clearForm(){
   editingIndex = null;
   document.getElementById("saveBtn").textContent = "Сохранить запись";
   document.getElementById("editNotice").hidden = true;
+  document.getElementById("f-rapt-enabled").checked = false;
+  document.getElementById("f-rapt-device").value = "";
+  document.getElementById("f-rapt-device").disabled = true;
+  refreshRaptFormReading();
 }
 
 let editingIndex = null;
@@ -1167,6 +1189,14 @@ function editRecipe(idx){
   renderCostPreview();
   document.getElementById("saveBtn").textContent = "Сохранить изменения";
   document.getElementById("editNotice").hidden = false;
+
+  const raptEnabled = document.getElementById("f-rapt-enabled");
+  const raptSelect = document.getElementById("f-rapt-device");
+  raptEnabled.checked = !!r.raptDeviceId;
+  raptSelect.disabled = !r.raptDeviceId;
+  raptSelect.value = r.raptDeviceId || "";
+  refreshRaptFormReading();
+
   document.getElementById("add").scrollIntoView({behavior:"smooth", block:"start"});
 }
 
@@ -1652,15 +1682,215 @@ function initCostCalc(){
   calcCost();
 }
 
-// ---- Artifact persistence ----
+// ---- RAPT Pill (цифровой ареометр) ----
+// Работает только когда доступен свой сервер (backendAvailable), потому что
+// именно api.php ходит в облако RAPT с секретом, который нельзя светить в браузере.
+let raptConfigured = false;
+let raptDevices = [];
+
+async function initRapt(){
+  if(!backendAvailable) return;
+  try{
+    const res = await fetch("api.php?action=rapt_status", { cache: "no-store" });
+    const data = await res.json();
+    raptConfigured = !!(data && data.ok && data.configured);
+  }catch(e){
+    raptConfigured = false;
+  }
+
+  if(raptConfigured){
+    document.getElementById("raptRow").hidden = false;
+    await loadRaptDevices();
+  } else {
+    document.getElementById("raptUnavailNote").hidden = false;
+  }
+  loadRaptPanelsForBrews();
+}
+
+async function loadRaptDevices(){
+  try{
+    const res = await fetch("api.php?action=rapt_devices", { cache: "no-store" });
+    const data = await res.json();
+    raptDevices = (data && data.ok && data.devices) || [];
+  }catch(e){
+    raptDevices = [];
+  }
+  const sel = document.getElementById("f-rapt-device");
+  sel.innerHTML = '<option value="">— выбрать ареометр —</option>' +
+    raptDevices.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join("");
+}
+
+function currentRaptSelection(){
+  const enabled = document.getElementById("f-rapt-enabled").checked;
+  const sel = document.getElementById("f-rapt-device");
+  if(!enabled || !sel.value) return null;
+  const device = raptDevices.find(d => d.id === sel.value);
+  return { id: sel.value, name: device ? device.name : "" };
+}
+
+async function refreshRaptFormReading(){
+  const cur = document.getElementById("f-rapt-current");
+  const sel = currentRaptSelection();
+  document.getElementById("raptPullOgBtn").disabled = true;
+  document.getElementById("raptPullFgBtn").disabled = true;
+  if(!sel){
+    cur.textContent = "включите чекбокс и выберите ареометр";
+    return;
+  }
+  cur.textContent = "загрузка…";
+  try{
+    const res = await fetch("api.php?action=rapt_latest&deviceId=" + encodeURIComponent(sel.id), { cache: "no-store" });
+    const data = await res.json();
+    if(!data || !data.ok) throw new Error(data && data.error ? data.error : "ошибка");
+    const r = data.reading;
+    cur.textContent = `плотность ${Number(r.gravity).toFixed(3)} · ${Number(r.temperature).toFixed(1)}°C · батарея ${Math.round(r.battery)}%`;
+    document.getElementById("raptPullOgBtn").disabled = false;
+    document.getElementById("raptPullFgBtn").disabled = false;
+  }catch(e){
+    cur.textContent = "не удалось получить показания (" + e.message + ")";
+  }
+}
+
+async function raptPullInto(field){
+  const sel = currentRaptSelection();
+  if(!sel) return;
+  try{
+    const res = await fetch("api.php?action=rapt_latest&deviceId=" + encodeURIComponent(sel.id), { cache: "no-store" });
+    const data = await res.json();
+    if(!data || !data.ok) throw new Error(data && data.error ? data.error : "ошибка");
+    document.getElementById(field === "og" ? "f-og" : "f-fg").value = Number(data.reading.gravity).toFixed(3);
+    updateAlcoholPreview();
+  }catch(e){
+    setStatus("RAPT: не удалось подставить показание (" + e.message + ")");
+  }
+}
+
+// Строит маленький инлайн-SVG график с двумя рядами (плотность и температура)
+// по точкам телеметрии — без внешних библиотек, в стиле остальных графиков журнала.
+function raptSparklineSvg(points){
+  if(!points || points.length < 2) return '<p class="calc-note">пока недостаточно данных для графика</p>';
+  const W = 560, H = 140, padL = 40, padR = 40, padT = 10, padB = 20;
+  const times = points.map(p => new Date(p.createdOn).getTime());
+  const gravities = points.map(p => Number(p.gravity));
+  const temps = points.map(p => Number(p.temperature));
+  const minT = Math.min(...times), maxT = Math.max(...times);
+  const minG = Math.min(...gravities), maxG = Math.max(...gravities);
+  const minTemp = Math.min(...temps), maxTemp = Math.max(...temps);
+  const gPad = Math.max(0.001, (maxG - minG) * 0.15) || 0.002;
+  const tPad = Math.max(0.5, (maxTemp - minTemp) * 0.15);
+  const x = t => padL + (maxT > minT ? (t - minT) / (maxT - minT) : 0) * (W - padL - padR);
+  const yG = g => H - padB - ((g - (minG - gPad)) / ((maxG + gPad) - (minG - gPad))) * (H - padT - padB);
+  const yT = t => H - padB - ((t - (minTemp - tPad)) / ((maxTemp + tPad) - (minTemp - tPad))) * (H - padT - padB);
+  const gravityPath = points.map((p, i) => `${i===0?"M":"L"} ${x(times[i]).toFixed(1)} ${yG(gravities[i]).toFixed(1)}`).join(" ");
+  const tempPath = points.map((p, i) => `${i===0?"M":"L"} ${x(times[i]).toFixed(1)} ${yT(temps[i]).toFixed(1)}`).join(" ");
+  return `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <path d="${gravityPath}" fill="none" stroke="var(--copper-deep)" stroke-width="2"/>
+      <path d="${tempPath}" fill="none" stroke="var(--hop)" stroke-width="2" stroke-dasharray="4 3"/>
+      <text x="${padL}" y="12" font-size="10" fill="var(--copper-deep)">плотность ${gravities[0].toFixed(3)} → ${gravities[gravities.length-1].toFixed(3)}</text>
+      <text x="${W-padR}" y="12" font-size="10" fill="var(--hop)" text-anchor="end">${temps[temps.length-1].toFixed(1)}°C</text>
+    </svg>`;
+}
+
+async function loadRaptPanelsForBrews(){
+  if(!raptConfigured) return;
+  userRecipes.forEach(async (r, i) => {
+    if(!r.raptDeviceId) return;
+    const panel = document.getElementById("rapt-panel-" + i);
+    if(!panel) return;
+
+    if(!r.raptActive){
+      const last = r.raptLastReading;
+      panel.innerHTML = last
+        ? `<div class="calc-note">RAPT «${escapeHtml(r.raptDeviceName||"")}» — мониторинг завершён. Последнее показание: плотность ${Number(last.gravity).toFixed(3)}, ${Number(last.temperature).toFixed(1)}°C.</div>`
+        : `<div class="calc-note">RAPT «${escapeHtml(r.raptDeviceName||"")}» — мониторинг завершён.</div>`;
+      return;
+    }
+
+    panel.innerHTML = '<div class="calc-note">RAPT: загрузка показаний…</div>';
+    try{
+      const [latestRes, teleRes] = await Promise.all([
+        fetch("api.php?action=rapt_latest&deviceId=" + encodeURIComponent(r.raptDeviceId), { cache: "no-store" }),
+        fetch("api.php?action=rapt_telemetry&deviceId=" + encodeURIComponent(r.raptDeviceId) + "&hours=168", { cache: "no-store" }),
+      ]);
+      const latest = await latestRes.json();
+      const tele = await teleRes.json();
+      if(!latest || !latest.ok) throw new Error(latest && latest.error ? latest.error : "ошибка");
+      const rd = latest.reading;
+      const points = (tele && tele.ok && tele.points) || [];
+      panel.innerHTML = `
+        <div class="stats" style="margin-top:.6rem;">
+          <span>Плотность (RAPT) <b>${Number(rd.gravity).toFixed(3)}</b></span>
+          <span>Темп. <b>${Number(rd.temperature).toFixed(1)}°C</b></span>
+          <span>Батарея <b>${Math.round(rd.battery)}%</b></span>
+        </div>
+        ${raptSparklineSvg(points)}
+        <button class="btn ghost small" type="button" onclick="stopRaptMonitoring(${i})">Брожение завершено</button>`;
+    }catch(e){
+      panel.innerHTML = `<div class="calc-note">RAPT «${escapeHtml(r.raptDeviceName||"")}»: не удалось получить данные (${escapeHtml(e.message)})</div>`;
+    }
+  });
+}
+
+// «Брожение завершено» — останавливает опрос RAPT для этой варки (карточка
+// перестаёт дёргать API на каждом открытии страницы), запоминает последнее
+// показание и, если FG ещё не вписан вручную, подставляет его из плотности.
+async function stopRaptMonitoring(idx){
+  const r = userRecipes[idx];
+  if(!r || !r.raptDeviceId) return;
+  try{
+    const res = await fetch("api.php?action=rapt_latest&deviceId=" + encodeURIComponent(r.raptDeviceId), { cache: "no-store" });
+    const data = await res.json();
+    if(data && data.ok){
+      r.raptLastReading = data.reading;
+      if(!r.fg){
+        r.fg = Number(data.reading.gravity).toFixed(3);
+        if(r.og) r.abv = estimateABV(r.og, r.fg);
+      }
+    }
+  }catch(e){ /* всё равно останавливаем мониторинг, даже если не получилось забрать последнее показание */ }
+  r.raptActive = false;
+  renderBrews();
+  setStatus("Мониторинг RAPT остановлен.");
+  await persistData("Мониторинг RAPT остановлен, изменения сохранены.", "Мониторинг RAPT остановлен, сохранено локально.");
+}
+
+// ---- Backend (api.php), Artifact и localStorage — три режима хранения ----
 let artifactApi = null;
 let canWrite = false;
+let backendAvailable = false;
+
+// Пытается найти api.php рядом с этой страницей. Есть только когда журнал
+// открыт через веб-сервер (не как локальный файл file://) и api.php лежит
+// в той же папке — например, на Synology. При успехе сразу подхватывает
+// общие данные с сервера (они приоритетнее локальных, потому что это
+// именно общее хранилище на несколько устройств).
+async function initBackend(){
+  if(location.protocol === "file:") return false;
+  try{
+    const res = await fetch("api.php?action=get", { cache: "no-store" });
+    if(!res.ok) return false;
+    const data = await res.json();
+    if(!data || data.ok === false) return false;
+    userRecipes = data.userRecipes || [];
+    userRecipeLibrary = data.userRecipeLibrary || [];
+    backendAvailable = true;
+    return true;
+  }catch(e){
+    return false;
+  }
+}
 
 async function initArtifact(){
+  const note = document.getElementById("modeNote");
+  if(backendAvailable){
+    canWrite = true;
+    note.textContent = "записи хранятся на сервере (api.php) — видны всем, у кого есть доступ к этому адресу";
+    return;
+  }
   try{
     artifactApi = await claude.use("artifact");
   }catch(e){ artifactApi = null; }
-  const note = document.getElementById("modeNote");
   if(artifactApi){
     canWrite = true;
     note.textContent = "новые записи сохраняются для всех, кто откроет журнал";
@@ -1693,11 +1923,31 @@ function loadFromLocalStorage(){
   }
 }
 
-// Единая точка сохранения: если журнал открыт как артефакт Claude — публикует в облако;
-// иначе пишет в localStorage этого браузера, так что журнал работает и без интернета.
-// Это отдельная версия без общего сервера — каждый, кто откроет файл, ведёт свою копию.
+// Единая точка сохранения: сервер (api.php) приоритетнее всего — если он
+// доступен, пишем туда; иначе, если журнал открыт как артефакт Claude —
+// публикует в облако; иначе пишет в localStorage этого браузера, так что
+// журнал работает и без интернета и без сервера.
 async function persistData(cloudMsg, localMsg){
   const savedLocally = saveToLocalStorage();
+
+  if(backendAvailable){
+    try{
+      const res = await fetch("api.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userRecipes, userRecipeLibrary }),
+      });
+      const data = await res.json();
+      if(data && data.ok){
+        setStatus(cloudMsg);
+        return;
+      }
+      throw new Error(data && data.error ? data.error : "сервер вернул ошибку");
+    }catch(e){
+      setStatus("Не удалось сохранить на сервере (" + (e && e.message ? e.message : "ошибка") + ")" + (savedLocally ? " — сохранено локально в этом браузере." : "."));
+      return;
+    }
+  }
 
   if(canWrite){
     try{
@@ -1754,6 +2004,21 @@ async function saveRecipe(){
     costVal = { ...costVal, perLiter: Math.round((costVal.total / volNum) * 10) / 10 };
   }
 
+  // Если и раньше, и сейчас выбран тот же ареометр RAPT — сохраняем статус
+  // мониторинга (активен/завершён) и последнее сохранённое показание;
+  // если ареометр сменили или сняли чекбокс — начинаем мониторинг заново.
+  const raptSel = currentRaptSelection();
+  const prevRec = (editingIndex !== null && userRecipes[editingIndex]) ? userRecipes[editingIndex] : null;
+  const raptSame = prevRec && raptSel && prevRec.raptDeviceId === raptSel.id;
+  const raptFields = raptSel
+    ? {
+        raptDeviceId: raptSel.id,
+        raptDeviceName: raptSel.name,
+        raptActive: raptSame ? !!prevRec.raptActive : true,
+        raptLastReading: raptSame ? (prevRec.raptLastReading || null) : null,
+      }
+    : { raptDeviceId: "", raptDeviceName: "", raptActive: false, raptLastReading: null };
+
   const rec = {
     name,
     style: document.getElementById("f-style").value.trim(),
@@ -1769,6 +2034,7 @@ async function saveRecipe(){
     ingredients: document.getElementById("f-ingr").value.trim(),
     notes: document.getElementById("f-notes").value.trim(),
     cost: costVal,
+    ...raptFields,
     example:false,
   };
 
@@ -1798,19 +2064,22 @@ renderRests();
 renderProfileChart();
 
 (async function boot(){
-  if(window.__SAVED_RECIPES__){
-    const saved = window.__SAVED_RECIPES__;
-    if(Array.isArray(saved)){
-      userRecipes = saved; // формат до появления библиотеки рецептов
+  const gotBackend = await initBackend();
+  if(!gotBackend){
+    if(window.__SAVED_RECIPES__){
+      const saved = window.__SAVED_RECIPES__;
+      if(Array.isArray(saved)){
+        userRecipes = saved; // формат до появления библиотеки рецептов
+      } else {
+        userRecipes = saved.userRecipes || [];
+        userRecipeLibrary = saved.userRecipeLibrary || [];
+      }
     } else {
-      userRecipes = saved.userRecipes || [];
-      userRecipeLibrary = saved.userRecipeLibrary || [];
+      // Отдельный файл без сервера — подхватываем последнее состояние из
+      // localStorage этого браузера, если оно уже есть (иначе остаются
+      // примеры рецептов и тестовая варка, зашитые в файл).
+      loadFromLocalStorage();
     }
-  } else {
-    // Отдельный файл без сервера — подхватываем последнее состояние из
-    // localStorage этого браузера, если оно уже есть (иначе остаются
-    // примеры рецептов и тестовая варка, зашитые в файл).
-    loadFromLocalStorage();
   }
   renderRecipeLibrary();
   renderBrews();
@@ -1831,7 +2100,16 @@ renderProfileChart();
   document.getElementById("f-og").addEventListener("blur", e => { autoConvertGravityField(e.target, false); updateAlcoholPreview(); });
   document.getElementById("f-fg").addEventListener("blur", e => { autoConvertGravityField(e.target, true); updateAlcoholPreview(); });
 
-  initArtifact();
+  document.getElementById("f-rapt-enabled").addEventListener("change", e => {
+    document.getElementById("f-rapt-device").disabled = !e.target.checked;
+    refreshRaptFormReading();
+  });
+  document.getElementById("f-rapt-device").addEventListener("change", refreshRaptFormReading);
+  document.getElementById("raptPullOgBtn").addEventListener("click", () => raptPullInto("og"));
+  document.getElementById("raptPullFgBtn").addEventListener("click", () => raptPullInto("fg"));
+
+  await initArtifact();
+  await initRapt();
 })();
 </script>
 <script id="dataScript">window.__SAVED_RECIPES__ = null;</script>
